@@ -652,3 +652,83 @@ body {
   padding: 0;
   margin-top: 0.5rem;
 }
+
+/* Collapsible panels */
+.panel-heading {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+
+.panel-chevron {
+  font-size: 0.75rem;
+  color: var(--fog);
+  transition: transform 0.2s;
+}
+
+.panel-content {
+  overflow: hidden;
+  transition: max-height 0.25s ease-out;
+}
+
+.panel.collapsed .panel-content {
+  max-height: 0 !important;
+}
+
+.panel.collapsed .panel-chevron {
+  transform: rotate(-90deg);
+}
+
+/* Transitions */
+#app {
+  transition: opacity 0.2s;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    max-height: 50vh;
+    border-right: none;
+    border-top: 1px solid var(--parchment-tertiary);
+    order: 2;
+  }
+
+  .map-container {
+    flex: 1;
+    min-height: 50vh;
+    order: 1;
+  }
+
+  .dropzone {
+    min-height: 100vh;
+    padding: 1rem;
+  }
+
+  .dropzone-title {
+    font-size: 1.75rem;
+  }
+
+  .dropzone-subtitle {
+    font-size: 1rem;
+  }
+
+  .walk-list-item {
+    padding: 0.375rem 0.5rem;
+  }
+
+  .app-header {
+    padding: 0.375rem 0.75rem;
+  }
+
+  .overlay-stats {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+  }
+}

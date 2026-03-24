@@ -109,6 +109,37 @@ export function createLayout(app: HTMLElement): LayoutResult {
   return { sidebar: panelsContainer, mapContainer, overlayMapContainer, showFileLoaded }
 }
 
+function makeCollapsible(panel: HTMLElement): void {
+  const heading = panel.querySelector<HTMLElement>('.panel-heading')
+  if (!heading) return
+
+  const chevron = document.createElement('span')
+  chevron.className = 'panel-chevron'
+  chevron.textContent = '▾'
+  heading.appendChild(chevron)
+
+  const content = document.createElement('div')
+  content.className = 'panel-content'
+
+  const children = Array.from(panel.childNodes).filter((node) => node !== heading)
+  for (const child of children) {
+    content.appendChild(child)
+  }
+  panel.appendChild(content)
+
+  heading.addEventListener('click', () => {
+    const isCollapsed = panel.classList.toggle('collapsed')
+    chevron.textContent = isCollapsed ? '▸' : '▾'
+  })
+}
+
+function makePanelsCollapsible(container: HTMLElement): void {
+  const panels = container.querySelectorAll<HTMLElement>('.panel')
+  for (const panel of panels) {
+    makeCollapsible(panel)
+  }
+}
+
 export function renderPanels(
   sidebar: HTMLElement,
   walk: Walk,
@@ -130,6 +161,8 @@ export function renderPanels(
   renderWeatherPanel(panelsContent, walk)
   renderTranscriptionsPanel(panelsContent, walk)
   renderCelestialPanel(panelsContent, walk)
+
+  makePanelsCollapsible(panelsContent)
 }
 
 export interface ModeToggleResult {
@@ -276,6 +309,8 @@ export function renderOverlaySidebar(
     renderWeatherPanel(panelsContent, options.selectedWalk)
     renderTranscriptionsPanel(panelsContent, options.selectedWalk)
     renderCelestialPanel(panelsContent, options.selectedWalk)
+
+    makePanelsCollapsible(panelsContent)
 
     if (options.onClearSelection) {
       const clearBtn = document.createElement('button')
