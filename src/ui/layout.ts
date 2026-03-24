@@ -46,8 +46,9 @@ export function createLayout(app: HTMLElement, onHomeClick?: () => void): Layout
   headerControls.style.gap = '0.5rem'
   headerControls.style.marginLeft = 'auto'
 
+  headerControls.insertBefore(openButton, headerControls.firstChild)
+
   header.appendChild(title)
-  header.appendChild(openButton)
   header.appendChild(headerControls)
 
   const layout = document.createElement('div')
