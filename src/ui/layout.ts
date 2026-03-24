@@ -88,9 +88,14 @@ export function createLayout(app: HTMLElement, onHomeClick?: () => void): Layout
   pilgrimBadge.appendChild(badgeText)
   pilgrimBadge.appendChild(badgeLink)
 
+  const versionText = document.createElement('p')
+  versionText.className = 'app-footer-text'
+  versionText.textContent = `v${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`
+
   footer.appendChild(privacyText)
   footer.appendChild(footerText)
   footer.appendChild(pilgrimBadge)
+  footer.appendChild(versionText)
 
   sidebar.appendChild(panelsContainer)
   sidebar.appendChild(footer)
