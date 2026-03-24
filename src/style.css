@@ -348,3 +348,69 @@ body {
   color: var(--fog);
   margin-left: 0.25rem;
 }
+
+/* Celestial */
+.celestial-section {
+  margin-bottom: 0.75rem;
+}
+
+.celestial-section:last-child {
+  margin-bottom: 0;
+}
+
+.celestial-label {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.celestial-value {
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  color: var(--ink);
+}
+
+.celestial-detail {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--fog);
+}
+
+.celestial-elements {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.element-badge {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--fog);
+  background: var(--parchment-tertiary);
+  border-radius: 10px;
+  padding: 0.125rem 0.5rem;
+}
+
+.element-dominant {
+  color: var(--stone);
+  font-weight: 700;
+}
+
+.celestial-positions {
+  margin-bottom: 0.75rem;
+}
+
+.position-row {
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  color: var(--ink);
+  padding: 0.125rem 0;
+}
+
+.position-retrograde {
+  color: var(--rust);
+}
