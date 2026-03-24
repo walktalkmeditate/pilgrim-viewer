@@ -57,6 +57,39 @@ body {
   margin: 0 0 2rem;
 }
 
+.dropzone-samples {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.dropzone-samples-label {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--fog);
+}
+
+.dropzone-sample-link {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--stone);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.125rem 0;
+  text-decoration: underline;
+  text-decoration-color: var(--parchment-tertiary);
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.15s;
+}
+
+.dropzone-sample-link:hover {
+  text-decoration-color: var(--stone);
+}
+
 .dropzone-button {
   font-family: var(--font-ui);
   font-size: 0.875rem;

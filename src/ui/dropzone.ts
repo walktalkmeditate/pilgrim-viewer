@@ -41,10 +41,44 @@ export function createDropZone(
   errorMsg.className = 'dropzone-error'
   errorMsg.textContent = 'Please use a .pilgrim or .gpx file'
 
+  const samples = document.createElement('div')
+  samples.className = 'dropzone-samples'
+
+  const samplesLabel = document.createElement('span')
+  samplesLabel.className = 'dropzone-samples-label'
+  samplesLabel.textContent = 'or try a sample:'
+
+  samples.appendChild(samplesLabel)
+
+  const sampleFiles = [
+    { name: 'kumano-kodo.pilgrim', label: 'Kumano Kodo' },
+    { name: 'camino-sarria.pilgrim', label: 'Camino de Santiago' },
+    { name: 'pilgrimages-collection.pilgrim', label: '2 walks' },
+    { name: 'kumano-kodo-takijiri.gpx', label: 'GPX only' },
+  ]
+
+  for (const sample of sampleFiles) {
+    const link = document.createElement('button')
+    link.className = 'dropzone-sample-link'
+    link.textContent = sample.label
+    link.addEventListener('click', async () => {
+      try {
+        const resp = await fetch(`${import.meta.env.BASE_URL}samples/${sample.name}`)
+        if (!resp.ok) throw new Error('Failed to load sample')
+        const buffer = await resp.arrayBuffer()
+        onFile(sample.name, buffer)
+      } catch {
+        showError()
+      }
+    })
+    samples.appendChild(link)
+  }
+
   wrapper.appendChild(title)
   wrapper.appendChild(subtitle)
   wrapper.appendChild(button)
   wrapper.appendChild(input)
+  wrapper.appendChild(samples)
   wrapper.appendChild(errorMsg)
   container.appendChild(wrapper)
 
