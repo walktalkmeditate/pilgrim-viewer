@@ -7,7 +7,7 @@ import { renderWeatherPanel } from '../panels/weather'
 import { renderTranscriptionsPanel } from '../panels/transcriptions'
 import { renderCelestialPanel } from '../panels/celestial'
 import { formatDistance } from '../parsers/units'
-import { getSeasonColor } from '../map/overlay'
+import { getWalkColor } from '../map/overlay'
 import type { ColorMode } from '../map/overlay'
 
 const GITHUB_URL = 'https://github.com/walktalkmeditate/pilgrim-viewer'
@@ -249,6 +249,7 @@ export function renderOverlaySidebar(
     onClearSelection?: () => void
     selectedWalk?: Walk
     manifest?: PilgrimManifest
+    colorMode?: ColorMode
   } = {},
 ): void {
   let panelsContent = sidebar.querySelector<HTMLElement>('.panels-content')
@@ -312,7 +313,7 @@ export function renderOverlaySidebar(
 
       const colorDot = document.createElement('span')
       colorDot.className = 'breakdown-dot'
-      colorDot.style.backgroundColor = getSeasonColor(options.selectedWalk.startDate)
+      colorDot.style.backgroundColor = getWalkColor(options.selectedWalk, options.colorMode ?? 'season')
       colorDot.style.display = 'inline-block'
       colorDot.style.marginRight = '0.375rem'
       colorDot.style.verticalAlign = 'middle'

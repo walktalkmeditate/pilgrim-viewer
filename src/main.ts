@@ -173,6 +173,7 @@ function renderMultiWalk(
     renderOverlaySidebar(layout.sidebar, walksForSidebar, {
       selectedWalk: walk ?? undefined,
       manifest: currentManifest,
+      colorMode,
       onBackToList: walk
         ? () => {
             selectedWalk = null
@@ -191,17 +192,13 @@ function renderMultiWalk(
 
     const panelsContent = layout.sidebar.querySelector<HTMLElement>('.panels-content')
     if (panelsContent) {
-      const colorSwitcher = renderColorSwitcher(panelsContent, (mode) => {
+      const colorSwitcherContainer = document.createElement('div')
+      panelsContent.insertBefore(colorSwitcherContainer, panelsContent.firstChild)
+      const colorSwitcher = renderColorSwitcher(colorSwitcherContainer, (mode) => {
         colorMode = mode
         if (overlayRenderer) overlayRenderer.setColorMode(mode)
       })
       colorSwitcher.setMode(colorMode)
-
-      const firstChild = panelsContent.firstChild
-      const switcherEl = panelsContent.lastElementChild
-      if (firstChild && switcherEl) {
-        panelsContent.insertBefore(switcherEl, firstChild)
-      }
 
       renderExportButtons(panelsContent,
         () => {

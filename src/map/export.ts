@@ -76,21 +76,10 @@ export function exportWithStats(
 
 export function exportClean(
   mapCanvas: HTMLCanvasElement,
-  container: HTMLElement,
+  _container: HTMLElement,
   filename: string,
 ): void {
-  const statsBar = container.querySelector<HTMLElement>('.overlay-stats')
-  const controls = container.querySelector<HTMLElement>('.mapboxgl-control-container')
-
-  if (statsBar) statsBar.style.display = 'none'
-  if (controls) controls.style.display = 'none'
-
-  const dataUrl = mapCanvas.toDataURL('image/png')
-
-  if (statsBar) statsBar.style.display = ''
-  if (controls) controls.style.display = ''
-
-  triggerDownload(dataUrl, filename)
+  triggerDownload(mapCanvas.toDataURL('image/png'), filename)
 }
 
 function triggerDownload(dataUrl: string, filename: string): void {
