@@ -873,24 +873,22 @@ body {
 
 /* Color Switcher */
 .color-switcher {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
+  display: inline-flex;
+  background: var(--parchment-tertiary);
+  border-radius: 16px;
+  padding: 2px;
   margin-bottom: 0.75rem;
 }
 
 .color-switcher-label {
-  font-family: var(--font-ui);
-  font-size: 0.6875rem;
-  color: var(--fog);
-  margin-right: 0.25rem;
+  display: none;
 }
 
 .color-switcher-option {
   font-family: var(--font-ui);
-  font-size: 0.6875rem;
-  padding: 0.1875rem 0.5rem;
-  border-radius: 10px;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 14px;
   border: none;
   background: var(--parchment-tertiary);
   color: var(--fog);
