@@ -231,12 +231,12 @@ function renderMultiWalk(
           if (!overlayRenderer) return
           const text = overlayRenderer.getStatsText()
           const filename = generateFilename('stats', selectedYear)
-          exportWithStats(overlayRenderer.getMap().getCanvas(), text, filename)
+          exportWithStats(overlayRenderer.getMap(), text, filename)
         },
         () => {
           if (!overlayRenderer) return
           const filename = generateFilename('clean', selectedYear)
-          exportClean(overlayRenderer.getMap().getCanvas(), layout.overlayMapContainer, filename)
+          exportClean(overlayRenderer.getMap(), layout.overlayMapContainer, filename)
         },
       )
 
