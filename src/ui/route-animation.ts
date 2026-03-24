@@ -19,8 +19,8 @@ const ROUTES: Route[] = [
   {
     name: 'Kumano Kodo',
     distance: '45 km',
-    lightColor: 'rgba(122, 139, 111, 0.15)',
-    darkColor: 'rgba(149, 168, 149, 0.12)',
+    lightColor: 'rgba(122, 139, 111, 0.06)',
+    darkColor: 'rgba(149, 168, 149, 0.10)',
     coords: [
       [135.766, 33.890, 80], [135.769, 33.892, 120], [135.771, 33.896, 200], [135.774, 33.899, 310],
       [135.777, 33.902, 410], [135.780, 33.905, 480], [135.784, 33.908, 530], [135.788, 33.911, 490],
@@ -33,8 +33,8 @@ const ROUTES: Route[] = [
   {
     name: 'Camino de Santiago',
     distance: '110 km',
-    lightColor: 'rgba(160, 99, 75, 0.15)',
-    darkColor: 'rgba(196, 126, 99, 0.12)',
+    lightColor: 'rgba(160, 99, 75, 0.06)',
+    darkColor: 'rgba(196, 126, 99, 0.10)',
     coords: [
       [-7.415, 42.780, 450], [-7.430, 42.772, 480], [-7.450, 42.765, 510], [-7.475, 42.758, 470],
       [-7.500, 42.752, 430], [-7.530, 42.748, 460], [-7.560, 42.742, 490], [-7.590, 42.738, 440],
@@ -47,8 +47,8 @@ const ROUTES: Route[] = [
   {
     name: 'Shikoku 88',
     distance: '19 km',
-    lightColor: 'rgba(196, 149, 106, 0.15)',
-    darkColor: 'rgba(212, 168, 122, 0.12)',
+    lightColor: 'rgba(196, 149, 106, 0.06)',
+    darkColor: 'rgba(212, 168, 122, 0.10)',
     coords: [
       [134.505, 34.159, 15], [134.501, 34.157, 40], [134.496, 34.154, 90], [134.491, 34.149, 160],
       [134.485, 34.145, 230], [134.478, 34.140, 300], [134.470, 34.135, 370], [134.462, 34.130, 430],
@@ -59,8 +59,8 @@ const ROUTES: Route[] = [
   },
 ]
 
-const BASE_LINE_WIDTH = 1.5
-const MAX_LINE_WIDTH = 3.5
+const BASE_LINE_WIDTH = 1
+const MAX_LINE_WIDTH = 2.5
 const FRAMES_PER_SEGMENT = 30
 const PAUSE_FRAMES = 120
 const ROUTE_PADDING = 0.15
@@ -126,8 +126,8 @@ function projectToCanvas(
   width: number,
   height: number,
 ): [number, number] {
-  const lonRange = bounds.maxLon - bounds.minLon
-  const latRange = bounds.maxLat - bounds.minLat
+  const lonRange = bounds.maxLon - bounds.minLon || 1
+  const latRange = bounds.maxLat - bounds.minLat || 1
 
   const aspectRoute = lonRange / latRange
   const aspectCanvas = width / height
@@ -210,10 +210,10 @@ export function createRouteAnimation(container: HTMLElement): { stop: () => void
 
       const avgAlt = (route.coords[i - 1][2] + route.coords[i][2]) / 2
       const altNorm = (avgAlt - minAlt) / altRange
-      const shadowOpacity = 0.03 + altNorm * 0.02
+      const shadowOpacity = 0.01 + altNorm * 0.01
 
       ctx!.strokeStyle = `rgba(${r}, ${g}, ${b}, ${shadowOpacity})`
-      ctx!.lineWidth = 18
+      ctx!.lineWidth = 8
       ctx!.lineCap = 'round'
       ctx!.lineJoin = 'round'
       ctx!.globalAlpha = currentOpacity
@@ -285,24 +285,22 @@ export function createRouteAnimation(container: HTMLElement): { stop: () => void
     for (const p of particles) {
       p.x += p.vx
       p.y += p.vy
-      p.opacity -= 0.003
+      p.opacity -= 0.001
     }
     particles = particles.filter((p) => p.opacity > 0)
   }
 
   function emitParticles(x: number, y: number): void {
-    const count = 2 + Math.floor(Math.random() * 2)
-    for (let i = 0; i < count; i++) {
-      if (particles.length >= MAX_PARTICLES) break
-      particles.push({
-        x,
-        y,
-        vx: (Math.random() - 0.5) * 1.2,
-        vy: (Math.random() - 0.5) * 1.2,
-        opacity: 0.15,
-        size: 1 + Math.random(),
-      })
-    }
+    if (Math.random() > 0.3) return
+    if (particles.length >= MAX_PARTICLES) return
+    particles.push({
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      opacity: 0.06,
+      size: 0.5 + Math.random() * 0.5,
+    })
   }
 
   function redrawCurrent(): void {
@@ -362,7 +360,7 @@ export function createRouteAnimation(container: HTMLElement): { stop: () => void
       updateParticles()
       redrawCurrent()
 
-      if (sealFadeCounter >= OVERLAY_FADE_FRAMES && captionFadeCounter >= OVERLAY_FADE_FRAMES && particles.length === 0) {
+      if (fadeOutCounter === 0 && sealFadeCounter >= OVERLAY_FADE_FRAMES && captionFadeCounter >= OVERLAY_FADE_FRAMES && particles.length === 0) {
         fadeOutCounter = 60
       }
       return
@@ -387,11 +385,11 @@ export function createRouteAnimation(container: HTMLElement): { stop: () => void
       const { minAlt, maxAlt } = computeAltitudeRange(route)
       const altRange = maxAlt - minAlt || 1
       const altNorm = (avgAlt - minAlt) / altRange
-      const shadowOpacity = 0.03 + altNorm * 0.02
+      const shadowOpacity = 0.01 + altNorm * 0.01
       const [r, g, b] = parseRouteRgba(route)
 
       ctx!.strokeStyle = `rgba(${r}, ${g}, ${b}, ${shadowOpacity})`
-      ctx!.lineWidth = 18
+      ctx!.lineWidth = 8
       ctx!.lineCap = 'round'
       ctx!.globalAlpha = currentOpacity
       ctx!.beginPath()

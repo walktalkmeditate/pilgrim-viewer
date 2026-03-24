@@ -34,10 +34,12 @@ function createQuoteRotator(container: HTMLElement): { stop: () => void } {
   el.textContent = QUOTES[index]
   container.appendChild(el)
 
+  let timeoutId = 0
+
   const intervalId = setInterval(() => {
     el.classList.add('fading')
 
-    setTimeout(() => {
+    timeoutId = window.setTimeout(() => {
       index = (index + 1) % QUOTES.length
       el.textContent = QUOTES[index]
       el.classList.remove('fading')
@@ -47,6 +49,7 @@ function createQuoteRotator(container: HTMLElement): { stop: () => void } {
   return {
     stop(): void {
       clearInterval(intervalId)
+      clearTimeout(timeoutId)
     },
   }
 }
@@ -54,7 +57,7 @@ function createQuoteRotator(container: HTMLElement): { stop: () => void } {
 export function createDropZone(
   container: HTMLElement,
   onFile: (name: string, buffer: ArrayBuffer) => void,
-): { openFilePicker: () => void } {
+): { openFilePicker: () => void; stop: () => void } {
   const wrapper = document.createElement('div')
   wrapper.className = 'dropzone'
 
@@ -207,5 +210,6 @@ export function createDropZone(
 
   return {
     openFilePicker: () => input.click(),
+    stop: () => stopAnimations(),
   }
 }

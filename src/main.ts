@@ -27,8 +27,9 @@ let currentManifest: PilgrimManifest | undefined
 let activeMapRenderer: ReturnType<typeof createMapRenderer> | null = null
 let activeOverlayRenderer: ReturnType<typeof createOverlayRenderer> | null = null
 let currentUnit: UnitSystem = resolveInitialUnit()
+let activeDropZone: { stop: () => void } | null = null
 
-createDropZone(app, handleFile)
+activeDropZone = createDropZone(app, handleFile)
 
 interface PilgrimViewerAPI {
   loadData(data: {
@@ -40,6 +41,10 @@ interface PilgrimViewerAPI {
 const pilgrimViewer: PilgrimViewerAPI = {
   loadData(data) {
     try {
+      if (!data || typeof data !== 'object' || !Array.isArray(data.walks)) {
+        console.error('pilgrimViewer.loadData: invalid data — expected { walks: [...] }')
+        return
+      }
       const walks = data.walks.map((raw) => parsePilgrimWalkJSON(raw))
       if (walks.length === 0) return
 
@@ -69,12 +74,13 @@ const pilgrimViewer: PilgrimViewerAPI = {
 ;(window as unknown as { pilgrimViewer: PilgrimViewerAPI }).pilgrimViewer = pilgrimViewer
 
 function goHome(): void {
+  if (activeDropZone) { activeDropZone.stop(); activeDropZone = null }
   if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
   if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
   currentWalks = []
   currentManifest = undefined
   app.textContent = ''
-  createDropZone(app, handleFile)
+  activeDropZone = createDropZone(app, handleFile)
 }
 
 async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
