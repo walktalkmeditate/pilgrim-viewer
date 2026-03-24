@@ -971,6 +971,18 @@ body {
   margin-bottom: 0.5rem;
 }
 
+/* Seal */
+.seal-panel {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+.seal-panel svg {
+  max-width: 200px;
+  max-height: 200px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .app-layout {

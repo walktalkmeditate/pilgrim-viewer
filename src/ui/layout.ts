@@ -1,5 +1,6 @@
 import type { Walk, PilgrimManifest } from '../parsers/types'
 import type { UnitSystem } from '../parsers/units'
+import { renderSealPanel } from '../panels/seal'
 import { renderStatsPanel } from '../panels/stats'
 import { renderElevationPanel } from '../panels/elevation'
 import { renderTimelinePanel } from '../panels/timeline'
@@ -186,6 +187,10 @@ export function renderPanels(
   }
 
   panelsContent.textContent = ''
+
+  const sealContainer = document.createElement('div')
+  panelsContent.appendChild(sealContainer)
+  renderSealPanel(sealContainer, walk, unit)
 
   renderStatsPanel(panelsContent, walk, unit)
   renderElevationPanel(panelsContent, walk, unit)
@@ -399,6 +404,10 @@ export function renderOverlaySidebar(
       backBtn.addEventListener('click', options.onBackToList)
       panelsContent.appendChild(backBtn)
     }
+
+    const sealContainer = document.createElement('div')
+    panelsContent.appendChild(sealContainer)
+    renderSealPanel(sealContainer, options.selectedWalk, unit)
 
     renderStatsPanel(panelsContent, options.selectedWalk, unit)
     renderElevationPanel(panelsContent, options.selectedWalk, unit)
