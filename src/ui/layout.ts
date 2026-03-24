@@ -19,15 +19,18 @@ export interface LayoutResult {
   showFileLoaded: (source: 'pilgrim' | 'gpx', onFileSelected: (name: string, buffer: ArrayBuffer) => void) => void
 }
 
-export function createLayout(app: HTMLElement): LayoutResult {
+export function createLayout(app: HTMLElement, onHomeClick?: () => void): LayoutResult {
   app.textContent = ''
 
   const header = document.createElement('header')
   header.className = 'app-header'
 
-  const title = document.createElement('h1')
+  const title = document.createElement('button')
   title.className = 'app-title'
   title.textContent = 'Pilgrim Viewer'
+  title.addEventListener('click', () => {
+    if (onHomeClick) onHomeClick()
+  })
 
   const githubLink = document.createElement('a')
   githubLink.className = 'app-github-link'

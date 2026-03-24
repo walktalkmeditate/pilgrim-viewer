@@ -18,7 +18,16 @@ let currentManifest: PilgrimManifest | undefined
 let activeMapRenderer: ReturnType<typeof createMapRenderer> | null = null
 let activeOverlayRenderer: ReturnType<typeof createOverlayRenderer> | null = null
 
-const dropzone = createDropZone(app, handleFile)
+createDropZone(app, handleFile)
+
+function goHome(): void {
+  if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
+  if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
+  currentWalks = []
+  currentManifest = undefined
+  app.textContent = ''
+  createDropZone(app, handleFile)
+}
 
 async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
   try {
@@ -86,7 +95,7 @@ function renderApp(): void {
   if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
 
   const source = currentWalks[0].source
-  const layout = createLayout(app)
+  const layout = createLayout(app, goHome)
   layout.showFileLoaded(source, handleFile)
 
   const mapRenderer = createMapRenderer(layout.mapContainer, token)
