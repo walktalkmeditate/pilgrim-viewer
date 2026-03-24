@@ -185,18 +185,6 @@ body {
   color: var(--ink);
 }
 
-.app-github-link {
-  font-family: var(--font-ui);
-  font-size: 0.75rem;
-  color: var(--fog);
-  text-decoration: none;
-  margin-left: auto;
-}
-
-.app-github-link:hover {
-  color: var(--stone);
-}
-
 .header-button {
   font-family: var(--font-ui);
   font-size: 0.75rem;
@@ -206,7 +194,7 @@ body {
   border-radius: 4px;
   padding: 0.25rem 0.75rem;
   cursor: pointer;
-  margin-left: 1rem;
+  margin-left: auto;
   display: none;
 }
 
@@ -649,7 +637,7 @@ body {
 
 /* Mode Toggle */
 .mode-toggle {
-  display: flex;
+  display: inline-flex;
   background: var(--parchment-tertiary);
   border-radius: 16px;
   padding: 2px;
@@ -674,25 +662,95 @@ body {
   font-weight: 700;
 }
 
-/* Overlay sidebar */
-.overlay-aggregate {
+/* Overlay Stats Grid */
+.overlay-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.125rem 1rem;
   margin-bottom: 0.75rem;
 }
 
-.overlay-aggregate-stat {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 300;
-  color: var(--ink);
-  text-align: center;
-  margin-bottom: 0.25rem;
+.overlay-stat-cell {
+  padding: 0.25rem 0;
 }
 
-.overlay-aggregate-label {
+.overlay-stat-value {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 300;
+  color: var(--ink);
+}
+
+.overlay-stat-label {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+}
+
+/* Color Legend */
+.color-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--parchment-tertiary);
+  border-bottom: 1px solid var(--parchment-tertiary);
+}
+
+.color-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+}
+
+.color-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Overlay Walk Timeline */
+.overlay-timeline {
+  margin-bottom: 0.75rem;
+}
+
+.overlay-timeline-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.overlay-timeline-row:hover {
+  background: var(--parchment-secondary);
+}
+
+.overlay-timeline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.overlay-timeline-date {
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  color: var(--ink);
+  flex: 1;
+}
+
+.overlay-timeline-dist {
   font-family: var(--font-ui);
   font-size: 0.75rem;
   color: var(--fog);
-  text-align: center;
 }
 
 .back-to-list {
@@ -895,6 +953,14 @@ body {
 
   .app-header {
     padding: 0.375rem 0.75rem;
+  }
+
+  .app-footer {
+    padding: 0.5rem 1rem;
+  }
+
+  .panels-container {
+    min-height: 0;
   }
 
   .overlay-stats {

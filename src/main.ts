@@ -174,6 +174,9 @@ function renderMultiWalk(
       selectedWalk: walk ?? undefined,
       manifest: currentManifest,
       colorMode,
+      onWalkClick: (w) => {
+        handleOverlayWalkClick(w)
+      },
       onBackToList: walk
         ? () => {
             selectedWalk = null

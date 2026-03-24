@@ -6,7 +6,7 @@ import { renderIntentionPanel } from '../panels/intention'
 import { renderWeatherPanel } from '../panels/weather'
 import { renderTranscriptionsPanel } from '../panels/transcriptions'
 import { renderCelestialPanel } from '../panels/celestial'
-import { formatDistance } from '../parsers/units'
+import { formatDistance, formatDuration } from '../parsers/units'
 import { getWalkColor } from '../map/overlay'
 import type { ColorMode } from '../map/overlay'
 
@@ -33,17 +33,11 @@ export function createLayout(app: HTMLElement, onHomeClick?: () => void): Layout
     if (onHomeClick) onHomeClick()
   })
 
-  const githubLink = document.createElement('a')
-  githubLink.className = 'app-github-link'
-  githubLink.href = GITHUB_URL
-  githubLink.textContent = 'GitHub'
-
   const openButton = document.createElement('button')
   openButton.className = 'header-button'
   openButton.textContent = 'Open another file'
 
   header.appendChild(title)
-  header.appendChild(githubLink)
   header.appendChild(openButton)
 
   const layout = document.createElement('div')
@@ -62,10 +56,17 @@ export function createLayout(app: HTMLElement, onHomeClick?: () => void): Layout
   footerText.className = 'app-footer-text'
   footerText.textContent = 'Open source · '
 
-  const footerLink = document.createElement('a')
-  footerLink.href = GITHUB_URL
-  footerLink.textContent = 'MIT License'
-  footerText.appendChild(footerLink)
+  const footerLicense = document.createElement('a')
+  footerLicense.href = GITHUB_URL
+  footerLicense.textContent = 'MIT License'
+  footerText.appendChild(footerLicense)
+
+  footerText.appendChild(document.createTextNode(' · '))
+
+  const footerGithub = document.createElement('a')
+  footerGithub.href = GITHUB_URL
+  footerGithub.textContent = 'GitHub'
+  footerText.appendChild(footerGithub)
 
   const pilgrimBadge = document.createElement('div')
   pilgrimBadge.className = 'pilgrim-badge'
@@ -229,24 +230,13 @@ export function renderModeToggle(
   return { setMode }
 }
 
-function countUniqueSeasons(walks: Walk[]): number {
-  const seasons = new Set<string>()
-  for (const walk of walks) {
-    const month = walk.startDate.getMonth()
-    if (month >= 2 && month <= 4) seasons.add('spring')
-    else if (month >= 5 && month <= 7) seasons.add('summer')
-    else if (month >= 8 && month <= 10) seasons.add('autumn')
-    else seasons.add('winter')
-  }
-  return seasons.size
-}
-
 export function renderOverlaySidebar(
   sidebar: HTMLElement,
   walks: Walk[],
   options: {
     onBackToList?: () => void
     onClearSelection?: () => void
+    onWalkClick?: (walk: Walk) => void
     selectedWalk?: Walk
     manifest?: PilgrimManifest
     colorMode?: ColorMode
@@ -261,44 +251,117 @@ export function renderOverlaySidebar(
 
   panelsContent.textContent = ''
 
-  const aggregate = document.createElement('div')
-  aggregate.className = 'overlay-aggregate'
+  const totalDist = walks.reduce((s, w) => s + w.stats.distance, 0)
+  const totalDuration = walks.reduce((s, w) => s + w.stats.activeDuration, 0)
+  const avgDist = walks.length > 0 ? totalDist / walks.length : 0
+  const longestWalk = walks.reduce((max, w) => w.stats.distance > max ? w.stats.distance : max, 0)
+  const earliestDate = walks.length > 0 ? walks.reduce((min, w) => w.startDate < min ? w.startDate : min, walks[0].startDate) : null
+  const latestDate = walks.length > 0 ? walks.reduce((max, w) => w.startDate > max ? w.startDate : max, walks[0].startDate) : null
 
-  const totalDistance = walks.reduce((sum, w) => sum + w.stats.distance, 0)
-  const seasonCount = countUniqueSeasons(walks)
+  const dateFmt: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+  const dateRange = earliestDate && latestDate
+    ? `${earliestDate.toLocaleDateString('en-US', dateFmt)} – ${latestDate.toLocaleDateString('en-US', dateFmt)}`
+    : ''
 
-  const walkStat = document.createElement('div')
-  walkStat.className = 'overlay-aggregate-stat'
-  walkStat.textContent = String(walks.length)
+  const statsGrid = document.createElement('div')
+  statsGrid.className = 'overlay-stats-grid'
 
-  const walkLabel = document.createElement('div')
-  walkLabel.className = 'overlay-aggregate-label'
-  walkLabel.textContent = walks.length === 1 ? 'walk' : 'walks'
+  const statEntries: Array<{ value: string; label: string }> = [
+    { value: `${walks.length} ${walks.length === 1 ? 'walk' : 'walks'}`, label: 'count' },
+    { value: formatDistance(totalDist), label: 'total distance' },
+    { value: formatDuration(totalDuration), label: 'total time' },
+    { value: dateRange, label: 'date range' },
+    { value: formatDistance(avgDist), label: 'avg per walk' },
+    { value: formatDistance(longestWalk), label: 'longest walk' },
+  ]
 
-  const distStat = document.createElement('div')
-  distStat.className = 'overlay-aggregate-stat'
-  distStat.textContent = formatDistance(totalDistance)
+  for (const entry of statEntries) {
+    const cell = document.createElement('div')
+    cell.className = 'overlay-stat-cell'
 
-  const distLabel = document.createElement('div')
-  distLabel.className = 'overlay-aggregate-label'
-  distLabel.textContent = 'total distance'
+    const val = document.createElement('div')
+    val.className = 'overlay-stat-value'
+    val.textContent = entry.value
 
-  const seasonStat = document.createElement('div')
-  seasonStat.className = 'overlay-aggregate-stat'
-  seasonStat.textContent = String(seasonCount)
+    const lbl = document.createElement('div')
+    lbl.className = 'overlay-stat-label'
+    lbl.textContent = entry.label
 
-  const seasonLabel = document.createElement('div')
-  seasonLabel.className = 'overlay-aggregate-label'
-  seasonLabel.textContent = seasonCount === 1 ? 'season' : 'seasons'
+    cell.appendChild(val)
+    cell.appendChild(lbl)
+    statsGrid.appendChild(cell)
+  }
 
-  aggregate.appendChild(walkStat)
-  aggregate.appendChild(walkLabel)
-  aggregate.appendChild(distStat)
-  aggregate.appendChild(distLabel)
-  aggregate.appendChild(seasonStat)
-  aggregate.appendChild(seasonLabel)
+  panelsContent.appendChild(statsGrid)
 
-  panelsContent.appendChild(aggregate)
+  const colorMode = options.colorMode ?? 'season'
+
+  const legendItems: Array<{ color: string; label: string }> = colorMode === 'season'
+    ? [
+        { color: '#7A8B6F', label: 'spring' },
+        { color: '#C4956A', label: 'summer' },
+        { color: '#A0634B', label: 'autumn' },
+        { color: '#6B8EAE', label: 'winter' },
+      ]
+    : [
+        { color: '#C4956A', label: 'dawn' },
+        { color: '#E8E0D4', label: 'midday' },
+        { color: '#D4874D', label: 'dusk' },
+        { color: '#6B8EAE', label: 'night' },
+      ]
+
+  const legend = document.createElement('div')
+  legend.className = 'color-legend'
+
+  for (const item of legendItems) {
+    const el = document.createElement('div')
+    el.className = 'color-legend-item'
+
+    const dot = document.createElement('span')
+    dot.className = 'color-legend-dot'
+    dot.style.backgroundColor = item.color
+
+    const lbl = document.createElement('span')
+    lbl.textContent = item.label
+
+    el.appendChild(dot)
+    el.appendChild(lbl)
+    legend.appendChild(el)
+  }
+
+  panelsContent.appendChild(legend)
+
+  const timeline = document.createElement('div')
+  timeline.className = 'overlay-timeline'
+
+  for (const walk of walks) {
+    const row = document.createElement('div')
+    row.className = 'overlay-timeline-row'
+
+    const dot = document.createElement('span')
+    dot.className = 'overlay-timeline-dot'
+    dot.style.backgroundColor = getWalkColor(walk, colorMode)
+
+    const date = document.createElement('span')
+    date.className = 'overlay-timeline-date'
+    date.textContent = walk.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+    const dist = document.createElement('span')
+    dist.className = 'overlay-timeline-dist'
+    dist.textContent = formatDistance(walk.stats.distance)
+
+    row.appendChild(dot)
+    row.appendChild(date)
+    row.appendChild(dist)
+
+    row.addEventListener('click', () => {
+      if (options.onWalkClick) options.onWalkClick(walk)
+    })
+
+    timeline.appendChild(row)
+  }
+
+  panelsContent.appendChild(timeline)
 
   if (options.selectedWalk) {
     if (options.onBackToList) {
