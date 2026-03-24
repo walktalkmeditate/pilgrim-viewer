@@ -1,10 +1,8 @@
-name: Build & Deploy
+name: Deploy
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    tags: ['v*']
 
 permissions:
   contents: read
@@ -28,22 +26,23 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run typecheck
+      - name: Typecheck
+        run: npm run typecheck
 
-      - run: npm test
+      - name: Test
+        run: npm test
 
-      - run: npm run build
+      - name: Build
+        run: npm run build
         env:
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
 
       - name: Upload artifact
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
     environment:
