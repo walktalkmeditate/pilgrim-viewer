@@ -47,7 +47,10 @@ export function createWalkList(
     onSelect(walks[index], index)
   }
 
-  select(0)
+  if (items.length > 0) {
+    selectedIndex = 0
+    items[0].classList.add('selected')
+  }
 
   return { select }
 }

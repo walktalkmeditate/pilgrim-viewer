@@ -125,8 +125,9 @@ export function parseGPX(xmlString: string): Walk[] {
       }
     }
 
-    const startMs = timestamps[0] ?? 0
-    const endMs = timestamps[timestamps.length - 1] ?? 0
+    const now = Date.now()
+    const startMs = timestamps[0] ?? now
+    const endMs = timestamps[timestamps.length - 1] ?? now
 
     const stats = buildStats(coordinates, elevations, startMs, endMs)
     const route = buildRouteFeatureCollection(coordinates, timestamps)

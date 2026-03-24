@@ -36,7 +36,7 @@ function createBreakdownBar(
   talkDuration: number,
   meditateDuration: number,
 ): HTMLElement {
-  const walkTime = activeDuration - talkDuration - meditateDuration
+  const walkTime = Math.max(0, activeDuration - talkDuration - meditateDuration)
   const total = activeDuration
 
   const bar = document.createElement('div')

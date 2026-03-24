@@ -32,6 +32,23 @@ function drawSparkline(canvas: HTMLCanvasElement, elevations: number[]): void {
   const minElev = Math.min(...elevations)
   const maxElev = Math.max(...elevations)
   const range = maxElev - minElev
+
+  if (range === 0) {
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const dpr = window.devicePixelRatio ?? 1
+    canvas.width = cssWidth * dpr
+    canvas.height = cssHeight * dpr
+    ctx.scale(dpr, dpr)
+    ctx.strokeStyle = STROKE_COLOR
+    ctx.lineWidth = STROKE_WIDTH
+    ctx.beginPath()
+    ctx.moveTo(0, cssHeight / 2)
+    ctx.lineTo(cssWidth, cssHeight / 2)
+    ctx.stroke()
+    return
+  }
+
   const yPad = range * Y_PADDING_FACTOR
   const yMin = minElev - yPad
   const yMax = maxElev + yPad

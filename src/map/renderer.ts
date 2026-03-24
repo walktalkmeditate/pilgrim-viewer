@@ -29,7 +29,7 @@ function findCoordIndex(timestamps: number[], targetTime: number): number {
 export function createMapRenderer(
   container: HTMLElement,
   token: string
-): { showWalk(walk: Walk): void; clear(): void; getMap(): mapboxgl.Map } {
+): { showWalk(walk: Walk): void; clear(): void; remove(): void; getMap(): mapboxgl.Map } {
   mapboxgl.accessToken = token
 
   const map = new mapboxgl.Map({
@@ -39,6 +39,7 @@ export function createMapRenderer(
 
   const activeLayers: string[] = []
   const activeSources: string[] = []
+  let pendingLoadHandler: (() => void) | null = null
 
   function clear(): void {
     for (const layerId of activeLayers) {
@@ -105,10 +106,10 @@ export function createMapRenderer(
     const renderOnLoad = (): void => {
       if (hasActivities && hasTimestamps) {
         walk.activities.forEach((activity, i) => {
-          const startSec = activity.startDate.getTime() / 1000
-          const endSec = activity.endDate.getTime() / 1000
-          const startIdx = findCoordIndex(timestamps!, startSec)
-          const endIdx = findCoordIndex(timestamps!, endSec)
+          const startMs = activity.startDate.getTime()
+          const endMs = activity.endDate.getTime()
+          const startIdx = findCoordIndex(timestamps!, startMs)
+          const endIdx = findCoordIndex(timestamps!, endMs)
 
           if (startIdx >= endIdx) return
 
@@ -160,12 +161,26 @@ export function createMapRenderer(
       map.fitBounds(bounds, { padding: 50 })
     }
 
+    if (pendingLoadHandler) {
+      map.off('load', pendingLoadHandler)
+      pendingLoadHandler = null
+    }
+
     if (map.isStyleLoaded()) {
       renderOnLoad()
     } else {
-      map.once('load', renderOnLoad)
+      pendingLoadHandler = renderOnLoad
+      map.once('load', () => {
+        pendingLoadHandler = null
+        renderOnLoad()
+      })
     }
   }
 
-  return { showWalk, clear, getMap: () => map }
+  function remove(): void {
+    clear()
+    map.remove()
+  }
+
+  return { showWalk, clear, remove, getMap: () => map }
 }

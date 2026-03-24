@@ -15,6 +15,8 @@ const app = document.getElementById('app')!
 
 let currentWalks: Walk[] = []
 let currentManifest: PilgrimManifest | undefined
+let activeMapRenderer: ReturnType<typeof createMapRenderer> | null = null
+let activeOverlayRenderer: ReturnType<typeof createOverlayRenderer> | null = null
 
 const dropzone = createDropZone(app, handleFile)
 
@@ -53,11 +55,15 @@ function renderApp(): void {
   const token = getMapboxToken()
   if (!token || currentWalks.length === 0) return
 
+  if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
+  if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
+
   const source = currentWalks[0].source
   const layout = createLayout(app)
   layout.showFileLoaded(source, dropzone.openFilePicker)
 
   const mapRenderer = createMapRenderer(layout.mapContainer, token)
+  activeMapRenderer = mapRenderer
 
   if (currentWalks.length > 1) {
     renderMultiWalk(layout, mapRenderer, token)
@@ -93,12 +99,8 @@ function renderMultiWalk(
       renderPanels(layout.sidebar, walk, currentManifest)
     })
 
-    if (selectedWalk) {
-      const idx = currentWalks.indexOf(selectedWalk)
-      if (idx >= 0 && walkList) {
-        walkList.select(idx)
-      }
-    }
+    const selectIdx = selectedWalk ? currentWalks.indexOf(selectedWalk) : 0
+    walkList.select(selectIdx >= 0 ? selectIdx : 0)
   }
 
   function showOverlayMode(): void {
@@ -107,6 +109,7 @@ function renderMultiWalk(
 
     if (!overlayRenderer) {
       overlayRenderer = createOverlayRenderer(layout.overlayMapContainer, token)
+      activeOverlayRenderer = overlayRenderer
       overlayRenderer.onWalkClick(handleOverlayWalkClick)
     }
 

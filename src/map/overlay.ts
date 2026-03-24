@@ -45,6 +45,7 @@ export interface OverlayRenderer {
   highlightWalk(walk: Walk): void
   clearSelection(): void
   clear(): void
+  remove(): void
   getMap(): mapboxgl.Map
   onWalkClick(callback: (walk: Walk) => void): void
 }
@@ -62,11 +63,16 @@ export function createOverlayRenderer(
 
   const activeSourceIds: string[] = []
   const activeLayerIds: string[] = []
+  const activeHandlers: Array<{ event: string; layer: string; handler: () => void }> = []
   let statsBar: HTMLElement | null = null
   let walkClickCallback: ((walk: Walk) => void) | null = null
   let currentWalks: Walk[] = []
 
   function removeSourcesAndLayers(): void {
+    for (const { event, layer, handler } of activeHandlers) {
+      map.off(event as 'click', layer, handler)
+    }
+    activeHandlers.length = 0
     for (const id of activeLayerIds) {
       if (map.getLayer(id)) map.removeLayer(id)
     }
@@ -147,17 +153,19 @@ export function createOverlayRenderer(
     })
     activeLayerIds.push(lid)
 
-    map.on('click', lid, () => {
-      if (walkClickCallback) walkClickCallback(walk)
-    })
+    const clickHandler = () => { if (walkClickCallback) walkClickCallback(walk) }
+    const enterHandler = () => { map.getCanvas().style.cursor = 'pointer' }
+    const leaveHandler = () => { map.getCanvas().style.cursor = '' }
 
-    map.on('mouseenter', lid, () => {
-      map.getCanvas().style.cursor = 'pointer'
-    })
+    map.on('click', lid, clickHandler)
+    map.on('mouseenter', lid, enterHandler)
+    map.on('mouseleave', lid, leaveHandler)
 
-    map.on('mouseleave', lid, () => {
-      map.getCanvas().style.cursor = ''
-    })
+    activeHandlers.push(
+      { event: 'click', layer: lid, handler: clickHandler },
+      { event: 'mouseenter', layer: lid, handler: enterHandler },
+      { event: 'mouseleave', layer: lid, handler: leaveHandler },
+    )
   }
 
   function fitToAllWalks(walks: Walk[]): void {
@@ -231,6 +239,11 @@ export function createOverlayRenderer(
     currentWalks = []
   }
 
+  function remove(): void {
+    clear()
+    map.remove()
+  }
+
   function onWalkClick(callback: (walk: Walk) => void): void {
     walkClickCallback = callback
   }
@@ -240,6 +253,7 @@ export function createOverlayRenderer(
     highlightWalk,
     clearSelection,
     clear,
+    remove,
     getMap: () => map,
     onWalkClick,
   }

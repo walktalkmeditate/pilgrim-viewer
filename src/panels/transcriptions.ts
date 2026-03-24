@@ -1,7 +1,7 @@
 import type { Walk } from '../parsers/types'
 
 function formatRelativeTime(walkStart: Date, recordingStart: Date): string {
-  const diffSeconds = Math.round((recordingStart.getTime() - walkStart.getTime()) / 1000)
+  const diffSeconds = Math.max(0, Math.round((recordingStart.getTime() - walkStart.getTime()) / 1000))
   const minutes = Math.floor(diffSeconds / 60)
   const seconds = diffSeconds % 60
   return `at ${minutes}m ${seconds}s`
