@@ -115,7 +115,6 @@ Everything runs in your browser. Your walk data is never uploaded, stored, or tr
 ## Related
 
 - [Pilgrim](https://pilgrimapp.org) — the iOS app that creates `.pilgrim` files
-- [pilgrim-worker](https://github.com/walktalkmeditate/pilgrim-worker) — ephemeral walk sharing at walk.pilgrimapp.org
 
 ## License
 
