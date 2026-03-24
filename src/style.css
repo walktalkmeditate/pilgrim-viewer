@@ -683,7 +683,7 @@ body {
   border-radius: 20px;
   font-family: var(--font-ui);
   font-size: 0.8125rem;
-  color: var(--ink);
+  color: #2C241E;
   pointer-events: none;
   z-index: 1;
 }
