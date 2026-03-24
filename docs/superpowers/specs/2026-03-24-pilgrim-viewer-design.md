@@ -143,6 +143,7 @@ interface VoiceRecording {
   duration: number          // seconds
   transcription?: string
   wordsPerMinute?: number
+  isEnhanced?: boolean
 }
 
 interface Activity {
@@ -150,6 +151,12 @@ interface Activity {
   startDate: Date
   endDate: Date
 }
+
+// NOTE: Raw .pilgrim activities only contain 'meditation' | 'unknown'.
+// The pilgrim parser must DERIVE the three-way breakdown:
+//   - meditate: activities where type === 'meditation'
+//   - talk: synthesized from voiceRecordings date ranges
+//   - walk: remaining active time (not meditation, not talking, not paused)
 
 interface Pause {
   startDate: Date
@@ -175,10 +182,10 @@ interface CelestialContext {
     planetaryDay: string
   }
   elementBalance: {
-    fire: number
-    earth: number
-    air: number
-    water: number
+    fire: number       // integer count of planetary placements
+    earth: number      // integer count
+    air: number        // integer count
+    water: number      // integer count
     dominant?: string
   }
   seasonalMarker?: string
@@ -202,11 +209,16 @@ These fields exist in the .pilgrim format but are not displayed or parsed in v1:
 - `isRace`, `isUserModified` — metadata flags, not useful for display
 - `finishedRecording` — could flag incomplete walks, but skip for now
 - `schemaVersion` — parser assumes version 1.0; log a warning for unrecognized versions
+- `type` — walk type field (`"walking"` or `"unknown"`), not useful for display
 - `manifest.customPromptStyles`, `manifest.intentions`, `manifest.events` — app-specific, not relevant to viewing individual walks
+
+### Waypoints
+
+The .pilgrim route GeoJSON may contain Point features (waypoints) alongside the LineString (route). These have `markerType`, `label`, `icon`, and `timestamp` properties. In v1, the map renderer ignores Point features and only renders LineString features.
 
 ### Unit Handling
 
-The .pilgrim manifest includes user preferences for `distanceUnit`, `altitudeUnit`, `speedUnit`. The viewer reads these and formats stats accordingly. GPX files default to metric. A small toggle in the stats panel allows switching between metric/imperial.
+The .pilgrim manifest includes user preferences for `distanceUnit`, `altitudeUnit`, `speedUnit`, `energyUnit`. The viewer reads these and formats stats accordingly. GPX files default to metric. A small toggle in the stats panel allows switching between metric/imperial.
 
 ### .pilgrim File Format
 
@@ -338,7 +350,7 @@ Matching pilgrim-landing and the iOS app:
 - **`--font-body`**: Cormorant Garamond — body text
 - **`--font-ui`**: Lato — stats, labels, buttons, metadata
 
-Loaded from Google Fonts. Fallbacks: `Georgia, serif` and `system-ui, sans-serif`.
+Loaded from Google Fonts. Fallbacks: `Georgia, serif` (display/body) and `'Helvetica Neue', sans-serif` (ui), matching pilgrim-landing.
 
 ### Interactions
 
@@ -370,7 +382,6 @@ Sidebar collapses to bottom sheet. Map goes full-width. Panels scroll vertically
 |---------|---------|
 | vite | Build + dev server |
 | typescript | Type checking |
-
 | vitest | Parser unit tests |
 
 No charting library, CSS framework, or state management. Elevation profile is a hand-drawn canvas sparkline.
