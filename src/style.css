@@ -686,6 +686,12 @@ body {
   color: #2C241E;
   pointer-events: none;
   z-index: 1;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+[data-theme="dark"] .overlay-stats {
+  background: rgba(28, 25, 20, 0.85);
+  color: #F0EBE1;
 }
 
 /* Mode Toggle */
