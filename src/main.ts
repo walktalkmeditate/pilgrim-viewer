@@ -4,61 +4,58 @@ import { parsePilgrim } from './parsers/pilgrim'
 import { parseGPX } from './parsers/gpx'
 import { createMapRenderer } from './map/renderer'
 import { getMapboxToken, renderTokenPrompt } from './map/token'
+import { createLayout, renderPanels } from './ui/layout'
 import type { Walk, PilgrimManifest } from './parsers/types'
 
 const app = document.getElementById('app')!
 
-function renderMap(app: HTMLElement, walks: Walk[], token: string): void {
-  app.textContent = ''
+let currentWalks: Walk[] = []
+let currentManifest: PilgrimManifest | undefined
 
-  const layout = document.createElement('div')
-  layout.className = 'app-layout'
+const dropzone = createDropZone(app, handleFile)
 
-  const sidebar = document.createElement('div')
-  sidebar.className = 'sidebar'
-  sidebar.textContent = `${walks.length} walk(s) loaded`
-
-  const mapContainer = document.createElement('div')
-  mapContainer.className = 'map-container'
-
-  layout.appendChild(sidebar)
-  layout.appendChild(mapContainer)
-  app.appendChild(layout)
-
-  const mapRenderer = createMapRenderer(mapContainer, token)
-  mapRenderer.showWalk(walks[0])
-}
-
-createDropZone(app, async (name, buffer) => {
+async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
   try {
-    let walks: Walk[]
-    let manifest: PilgrimManifest | undefined
-
     if (name.endsWith('.pilgrim')) {
       const result = await parsePilgrim(buffer)
-      walks = result.walks
-      manifest = result.manifest
+      currentWalks = result.walks
+      currentManifest = result.manifest
     } else {
       const text = new TextDecoder().decode(buffer)
-      walks = parseGPX(text)
+      currentWalks = parseGPX(text)
+      currentManifest = undefined
     }
 
-    console.log(`Parsed ${walks.length} walk(s)`, walks)
-    if (manifest) console.log('Manifest:', manifest)
+    if (currentWalks.length === 0) {
+      throw new Error('No walks found in file')
+    }
 
     const token = getMapboxToken()
     if (!token) {
       app.textContent = ''
-      renderTokenPrompt(app, (newToken) => {
-        renderMap(app, walks, newToken)
-      })
+      renderTokenPrompt(app, () => renderApp())
       return
     }
 
-    renderMap(app, walks, token)
+    renderApp()
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to parse file'
     console.error('Parse error:', err)
     console.error(msg)
   }
-})
+}
+
+function renderApp(): void {
+  const token = getMapboxToken()
+  if (!token || currentWalks.length === 0) return
+
+  const source = currentWalks[0].source
+  const layout = createLayout(app)
+  layout.showFileLoaded(source, dropzone.openFilePicker)
+
+  const mapRenderer = createMapRenderer(layout.mapContainer, token)
+
+  const walk = currentWalks[0]
+  mapRenderer.showWalk(walk)
+  renderPanels(layout.sidebar, walk, currentManifest)
+}

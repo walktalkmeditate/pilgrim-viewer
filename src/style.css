@@ -91,20 +91,125 @@ body {
   display: none;
 }
 
+/* App wrapper to stack header + content */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: var(--parchment);
+  border-bottom: 1px solid var(--parchment-tertiary);
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.app-title {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 400;
+  color: var(--ink);
+  margin: 0;
+}
+
+.app-github-link {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--fog);
+  text-decoration: none;
+  margin-left: auto;
+}
+
+.app-github-link:hover {
+  color: var(--stone);
+}
+
+.header-button {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--stone);
+  background: transparent;
+  border: 1px solid var(--parchment-tertiary);
+  border-radius: 4px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  margin-left: 1rem;
+  display: none;
+}
+
+.header-button.visible {
+  display: inline-block;
+}
+
+.header-button:hover {
+  border-color: var(--stone);
+}
+
 /* Main Layout */
 .app-layout {
   display: flex;
-  height: 100vh;
-  width: 100vw;
+  flex: 1;
+  overflow: hidden;
 }
 
 .sidebar {
   width: 320px;
   flex-shrink: 0;
   background: var(--parchment);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--parchment-tertiary);
+}
+
+.panels-container {
+  flex: 1;
   overflow-y: auto;
   padding: 1rem;
-  border-right: 1px solid var(--parchment-tertiary);
+}
+
+/* Footer */
+.app-footer {
+  padding: 0.75rem 1rem;
+  margin-top: auto;
+  border-top: 1px solid var(--parchment-tertiary);
+}
+
+.app-footer-text {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+  margin: 0;
+}
+
+.app-footer a {
+  color: var(--fog);
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  color: var(--stone);
+}
+
+.pilgrim-badge {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--stone);
+  margin-top: 0.5rem;
+  display: none;
+}
+
+.pilgrim-badge.visible {
+  display: block;
+}
+
+.pilgrim-badge a {
+  color: var(--stone);
+  text-decoration: none;
 }
 
 .map-container {
