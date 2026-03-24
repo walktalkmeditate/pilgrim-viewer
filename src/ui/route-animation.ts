@@ -48,7 +48,7 @@ const ROUTES: Route[] = [
 
 const BASE_LINE_WIDTH = 1.5
 const MAX_LINE_WIDTH = 3.5
-const FRAMES_PER_SEGMENT = 20
+const FRAMES_PER_SEGMENT = 30
 const PAUSE_FRAMES = 120
 const ROUTE_PADDING = 0.15
 
@@ -191,14 +191,19 @@ export function createRouteAnimation(container: HTMLElement): { stop: () => void
     ctx!.globalAlpha = 1
   }
 
-  function drawNextSegment(): void {
+  let prevTipX = 0
+  let prevTipY = 0
+
+  function drawFrame(): void {
     const route = ROUTES[routeIndex]
     const bounds = computeRouteBounds(route)
 
     if (segmentIndex >= route.coords.length - 1) {
-      fadeOutCounter = 30
+      fadeOutCounter = 60
       return
     }
+
+    const t = frameCounter / FRAMES_PER_SEGMENT
 
     const [fromX, fromY] = projectToCanvas(
       route.coords[segmentIndex][0], route.coords[segmentIndex][1],
@@ -209,32 +214,42 @@ export function createRouteAnimation(container: HTMLElement): { stop: () => void
       bounds, canvasW, canvasH,
     )
 
-    const midX = (fromX + toX) / 2
-    const midY = (fromY + toY) / 2
+    const tipX = fromX + (toX - fromX) * t
+    const tipY = fromY + (toY - fromY) * t
 
-    ctx!.strokeStyle = getRouteColor(route)
-    ctx!.lineWidth = getSegmentWidth(route, segmentIndex + 1)
-    ctx!.lineCap = 'round'
-    ctx!.lineJoin = 'round'
-    ctx!.globalAlpha = currentOpacity
-    ctx!.beginPath()
-    ctx!.moveTo(fromX, fromY)
-    ctx!.quadraticCurveTo(midX + (toY - fromY) * 0.1, midY - (toX - fromX) * 0.1, toX, toY)
-    ctx!.stroke()
-    ctx!.globalAlpha = 1
+    if (frameCounter > 0 || segmentIndex > 0) {
+      const lw = BASE_LINE_WIDTH + (getSegmentWidth(route, segmentIndex + 1) - BASE_LINE_WIDTH) * t
+      ctx!.strokeStyle = getRouteColor(route)
+      ctx!.lineWidth = lw
+      ctx!.lineCap = 'round'
+      ctx!.globalAlpha = currentOpacity
+      ctx!.beginPath()
+      ctx!.moveTo(prevTipX, prevTipY)
+      ctx!.lineTo(tipX, tipY)
+      ctx!.stroke()
+      ctx!.globalAlpha = 1
+    }
 
-    segmentIndex++
+    prevTipX = tipX
+    prevTipY = tipY
+
+    frameCounter++
+    if (frameCounter >= FRAMES_PER_SEGMENT) {
+      frameCounter = 0
+      segmentIndex++
+    }
   }
 
   function frame(): void {
     if (fadeOutCounter > 0) {
       fadeOutCounter--
-      currentOpacity = fadeOutCounter / 30
+      currentOpacity = fadeOutCounter / 60
       redrawCurrent()
 
       if (fadeOutCounter <= 0) {
         routeIndex = (routeIndex + 1) % ROUTES.length
         segmentIndex = 0
+        frameCounter = 0
         currentOpacity = 1
         pauseCounter = PAUSE_FRAMES
         ctx!.clearRect(0, 0, canvasW, canvasH)
@@ -250,12 +265,7 @@ export function createRouteAnimation(container: HTMLElement): { stop: () => void
       return
     }
 
-    frameCounter++
-    if (frameCounter >= FRAMES_PER_SEGMENT) {
-      frameCounter = 0
-      drawNextSegment()
-    }
-
+    drawFrame()
     animationId = requestAnimationFrame(frame)
   }
 
