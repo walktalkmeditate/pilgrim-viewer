@@ -1,4 +1,18 @@
+import { createRouteAnimation } from './route-animation'
+
 const VALID_EXTENSIONS = ['.pilgrim', '.gpx']
+
+const QUOTES = [
+  'The path is made by walking',
+  'Not all who wander are lost',
+  'Every journey begins with a single step',
+  'Solvitur ambulando — it is solved by walking',
+  'Walk as if you are kissing the earth with your feet',
+  'The journey of a thousand miles begins beneath your feet',
+]
+
+const QUOTE_INTERVAL_MS = 20_000
+const QUOTE_FADE_MS = 800
 
 function hasValidExtension(filename: string): boolean {
   return VALID_EXTENSIONS.some((ext) => filename.toLowerCase().endsWith(ext))
@@ -13,12 +27,38 @@ function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
   })
 }
 
+function createQuoteRotator(container: HTMLElement): { stop: () => void } {
+  const el = document.createElement('p')
+  el.className = 'dropzone-quote'
+  let index = 0
+  el.textContent = QUOTES[index]
+  container.appendChild(el)
+
+  const intervalId = setInterval(() => {
+    el.classList.add('fading')
+
+    setTimeout(() => {
+      index = (index + 1) % QUOTES.length
+      el.textContent = QUOTES[index]
+      el.classList.remove('fading')
+    }, QUOTE_FADE_MS)
+  }, QUOTE_INTERVAL_MS)
+
+  return {
+    stop(): void {
+      clearInterval(intervalId)
+    },
+  }
+}
+
 export function createDropZone(
   container: HTMLElement,
   onFile: (name: string, buffer: ArrayBuffer) => void,
 ): { openFilePicker: () => void } {
   const wrapper = document.createElement('div')
   wrapper.className = 'dropzone'
+
+  const animation = createRouteAnimation(wrapper)
 
   const title = document.createElement('h1')
   title.className = 'dropzone-title'
@@ -56,11 +96,17 @@ export function createDropZone(
     { route: 'Shikoku 88, 4 days', gpx: 'shikoku-88.gpx', pilgrim: 'shikoku-88.pilgrim' },
   ]
 
+  function stopAnimations(): void {
+    animation.stop()
+    quoteRotator.stop()
+  }
+
   async function loadSample(filename: string): Promise<void> {
     try {
       const resp = await fetch(`${import.meta.env.BASE_URL}samples/${filename}`)
       if (!resp.ok) throw new Error('Failed to load sample')
       const buffer = await resp.arrayBuffer()
+      stopAnimations()
       onFile(filename, buffer)
     } catch {
       showError()
@@ -101,6 +147,9 @@ export function createDropZone(
   wrapper.appendChild(input)
   wrapper.appendChild(samples)
   wrapper.appendChild(privacy)
+
+  const quoteRotator = createQuoteRotator(wrapper)
+
   wrapper.appendChild(errorMsg)
   container.appendChild(wrapper)
 
@@ -120,6 +169,7 @@ export function createDropZone(
     hideError()
     try {
       const buffer = await readFileAsArrayBuffer(file)
+      stopAnimations()
       onFile(file.name, buffer)
     } catch {
       showError()
