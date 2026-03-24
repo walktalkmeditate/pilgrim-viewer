@@ -1,7 +1,7 @@
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Walk } from '../parsers/types'
-import { formatDistance } from '../parsers/units'
+import { generateStatsText } from './export'
 
 const SEASON_COLORS: Record<string, string> = {
   spring: '#7A8B6F',
@@ -22,14 +22,6 @@ export function getSeasonColor(date: Date): string {
   if (month >= 5 && month <= 7) return SEASON_COLORS.summer
   if (month >= 8 && month <= 10) return SEASON_COLORS.autumn
   return SEASON_COLORS.winter
-}
-
-function getSeasonName(date: Date): string {
-  const month = date.getMonth()
-  if (month >= 2 && month <= 4) return 'spring'
-  if (month >= 5 && month <= 7) return 'summer'
-  if (month >= 8 && month <= 10) return 'autumn'
-  return 'winter'
 }
 
 export type ColorMode = 'season' | 'timeOfDay'
@@ -95,6 +87,9 @@ export interface OverlayRenderer {
   remove(): void
   getMap(): mapboxgl.Map
   onWalkClick(callback: (walk: Walk) => void): void
+  setColorMode(mode: ColorMode): void
+  setSelectedYear(year: number | null): void
+  getStatsText(): string
 }
 
 export function createOverlayRenderer(
@@ -106,6 +101,7 @@ export function createOverlayRenderer(
   const map = new mapboxgl.Map({
     container,
     style: 'mapbox://styles/mapbox/dark-v11',
+    preserveDrawingBuffer: true,
   })
 
   const activeSourceIds: string[] = []
@@ -115,6 +111,8 @@ export function createOverlayRenderer(
   let walkClickCallback: ((walk: Walk) => void) | null = null
   let currentWalks: Walk[] = []
   let pendingLoadHandler: (() => void) | null = null
+  let currentColorMode: ColorMode = 'season'
+  let selectedYear: number | null = null
 
   function removeSourcesAndLayers(): void {
     for (const { event, layer, handler } of activeHandlers) {
@@ -138,27 +136,11 @@ export function createOverlayRenderer(
     }
   }
 
-  function countSeasons(walks: Walk[]): number {
-    const seasons = new Set(walks.map((w) => getSeasonName(w.startDate)))
-    return seasons.size
-  }
-
-  function totalDistanceKm(walks: Walk[]): number {
-    return walks.reduce((sum, w) => sum + w.stats.distance, 0)
-  }
-
   function createStatsBar(walks: Walk[]): void {
     removeStatsBar()
-
     const bar = document.createElement('div')
     bar.className = 'overlay-stats'
-
-    const walkCount = walks.length
-    const distance = formatDistance(totalDistanceKm(walks))
-    const seasons = countSeasons(walks)
-
-    bar.textContent = `${walkCount} walks \u00B7 ${distance} \u00B7 ${seasons} season${seasons !== 1 ? 's' : ''}`
-
+    bar.textContent = generateStatsText(walks, currentColorMode, selectedYear)
     container.appendChild(bar)
     statsBar = bar
   }
@@ -194,7 +176,7 @@ export function createOverlayRenderer(
       source: sid,
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: {
-        'line-color': getSeasonColor(walk.startDate),
+        'line-color': getWalkColor(walk, currentColorMode),
         'line-width': DEFAULT_WIDTH,
         'line-opacity': DEFAULT_OPACITY,
       },
@@ -305,6 +287,25 @@ export function createOverlayRenderer(
     walkClickCallback = callback
   }
 
+  function setColorMode(mode: ColorMode): void {
+    currentColorMode = mode
+    for (let i = 0; i < currentWalks.length; i++) {
+      const lid = layerId(i)
+      if (!map.getLayer(lid)) continue
+      map.setPaintProperty(lid, 'line-color', getWalkColor(currentWalks[i], mode))
+    }
+    createStatsBar(currentWalks)
+  }
+
+  function setSelectedYear(year: number | null): void {
+    selectedYear = year
+    createStatsBar(currentWalks)
+  }
+
+  function getStatsText(): string {
+    return generateStatsText(currentWalks, currentColorMode, selectedYear)
+  }
+
   return {
     showAllWalks,
     highlightWalk,
@@ -313,5 +314,8 @@ export function createOverlayRenderer(
     remove,
     getMap: () => map,
     onWalkClick,
+    setColorMode,
+    setSelectedYear,
+    getStatsText,
   }
 }
