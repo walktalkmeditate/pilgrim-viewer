@@ -112,3 +112,90 @@ body {
   min-height: 400px;
   position: relative;
 }
+
+/* Panels */
+.panel {
+  background: var(--parchment-secondary);
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.panel-heading {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 0.75rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.25rem 0;
+}
+
+.stat-label {
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  color: var(--fog);
+}
+
+.stat-value {
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.unit-toggle {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+  background: var(--parchment-tertiary);
+  border: none;
+  border-radius: 10px;
+  padding: 0.125rem 0.5rem;
+  cursor: pointer;
+  margin-left: 0.5rem;
+}
+
+.unit-toggle:hover {
+  color: var(--stone);
+}
+
+/* Breakdown Bar */
+.breakdown-bar {
+  display: flex;
+  height: 20px;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 0.75rem;
+}
+
+.breakdown-segment {
+  min-width: 2px;
+}
+
+.breakdown-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.375rem;
+}
+
+.breakdown-label {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.breakdown-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
