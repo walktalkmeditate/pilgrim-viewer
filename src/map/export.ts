@@ -85,7 +85,7 @@ export function exportWithStats(
   const saved = boostRoutes(map)
   map.triggerRepaint()
 
-  requestAnimationFrame(async () => {
+  requestAnimationFrame(() => {
     const mapCanvas = map.getCanvas()
     const width = mapCanvas.width
     const height = mapCanvas.height
@@ -102,7 +102,6 @@ export function exportWithStats(
 
     ctx.fillStyle = FOOTER_BG
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-
     ctx.drawImage(mapCanvas, pad, pad)
 
     ctx.fillStyle = FOOTER_TEXT_COLOR
@@ -111,12 +110,15 @@ export function exportWithStats(
     ctx.textBaseline = 'middle'
     ctx.fillText(statsText, canvas.width / 2, height + pad * 2 + footerH / 2)
 
-    if (walks.length > 0) {
-      await compositeSeal(ctx, canvas.width, height + pad * 2, walks, unit, dpr)
-    }
-
     restoreRoutes(map, saved)
-    triggerDownload(canvas.toDataURL('image/png'), filename)
+
+    if (walks.length > 0) {
+      compositeSeal(ctx, canvas.width, height + pad * 2, walks, unit, dpr).then(() => {
+        triggerDownload(canvas.toDataURL('image/png'), filename)
+      })
+    } else {
+      triggerDownload(canvas.toDataURL('image/png'), filename)
+    }
   })
 }
 
@@ -130,7 +132,7 @@ export function exportClean(
   const saved = boostRoutes(map)
   map.triggerRepaint()
 
-  requestAnimationFrame(async () => {
+  requestAnimationFrame(() => {
     const mapCanvas = map.getCanvas()
     const width = mapCanvas.width
     const height = mapCanvas.height
@@ -146,15 +148,17 @@ export function exportClean(
 
     ctx.fillStyle = '#1C1914'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-
     ctx.drawImage(mapCanvas, pad, pad)
 
-    if (walks.length > 0) {
-      await compositeSeal(ctx, canvas.width, canvas.height, walks, unit, dpr)
-    }
-
     restoreRoutes(map, saved)
-    triggerDownload(canvas.toDataURL('image/png'), filename)
+
+    if (walks.length > 0) {
+      compositeSeal(ctx, canvas.width, canvas.height, walks, unit, dpr).then(() => {
+        triggerDownload(canvas.toDataURL('image/png'), filename)
+      })
+    } else {
+      triggerDownload(canvas.toDataURL('image/png'), filename)
+    }
   })
 }
 
@@ -167,16 +171,13 @@ function triggerDownload(dataUrl: string, filename: string): void {
   document.body.removeChild(a)
 }
 
-function svgToImage(svgString: string, size: number): Promise<HTMLImageElement> {
+function svgToImage(svgString: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
+    const encoded = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)))
     const img = new Image()
-    img.onload = () => { URL.revokeObjectURL(url); resolve(img) }
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to render seal SVG')) }
-    img.width = size
-    img.height = size
-    img.src = url
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('Failed to render seal SVG'))
+    img.src = encoded
   })
 }
 
@@ -192,9 +193,11 @@ async function compositeSeal(
     const sealSize = Math.round(120 * dpr)
     const svg = await generateCombinedSealSVG(walks, sealSize, unit)
     if (!svg) return
-    const img = await svgToImage(svg, sealSize)
+    const img = await svgToImage(svg)
     const margin = Math.round(16 * dpr)
+    ctx.globalAlpha = 0.6
     ctx.drawImage(img, canvasWidth - sealSize - margin, canvasHeight - sealSize - margin, sealSize, sealSize)
+    ctx.globalAlpha = 1.0
   } catch {
     // Seal compositing is optional — don't block the export
   }
