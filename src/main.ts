@@ -226,17 +226,21 @@ function renderMultiWalk(
       })
       colorSwitcher.setMode(colorMode)
 
+      const walksForExport = selectedYear
+        ? currentWalks.filter((w) => w.startDate.getFullYear() === selectedYear)
+        : currentWalks
+
       renderExportButtons(panelsContent,
         () => {
           if (!overlayRenderer) return
           const text = overlayRenderer.getStatsText()
           const filename = generateFilename('stats', selectedYear)
-          exportWithStats(overlayRenderer.getMap(), text, filename)
+          exportWithStats(overlayRenderer.getMap(), text, filename, walksForExport, currentUnit)
         },
         () => {
           if (!overlayRenderer) return
           const filename = generateFilename('clean', selectedYear)
-          exportClean(overlayRenderer.getMap(), layout.overlayMapContainer, filename)
+          exportClean(overlayRenderer.getMap(), layout.overlayMapContainer, filename, walksForExport, currentUnit)
         },
       )
 

@@ -333,4 +333,41 @@ export async function renderSealPanel(
   container.appendChild(wrapper)
 }
 
+export async function generateCombinedSealSVG(
+  walks: Walk[],
+  size: number,
+  unit: UnitSystem = 'metric',
+): Promise<string | null> {
+  if (walks.length === 0) return null
+
+  const allRoutePoints: RoutePoint[] = []
+  for (const walk of walks) {
+    allRoutePoints.push(...extractRoutePoints(walk))
+  }
+  if (allRoutePoints.length === 0) return null
+
+  const totalDistance = walks.reduce((s, w) => s + w.stats.distance, 0)
+  const totalActiveDuration = walks.reduce((s, w) => s + w.stats.activeDuration, 0)
+  const totalMeditateDuration = walks.reduce((s, w) => s + w.stats.meditateDuration, 0)
+  const totalTalkDuration = walks.reduce((s, w) => s + w.stats.talkDuration, 0)
+  const earliestWalk = walks.reduce((min, w) => w.startDate < min.startDate ? w : min, walks[0])
+
+  const combinedWalk: Walk = {
+    ...earliestWalk,
+    id: 'combined-journey',
+    stats: {
+      ...earliestWalk.stats,
+      distance: totalDistance,
+      activeDuration: totalActiveDuration,
+      meditateDuration: totalMeditateDuration,
+      talkDuration: totalTalkDuration,
+    },
+  }
+
+  const hash = await computeWalkHash(combinedWalk, allRoutePoints)
+  const bytes = hexToBytes(hash)
+
+  return generateSealSvg(bytes, combinedWalk, allRoutePoints, size, unit)
+}
+
 export { getSeason as _getSeason, getTimeOfDay as _getTimeOfDay, extractRoutePoints as _extractRoutePoints }

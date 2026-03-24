@@ -1,8 +1,10 @@
 import mapboxgl from 'mapbox-gl'
 import type { Walk } from '../parsers/types'
 import type { ColorMode } from './overlay'
+import type { UnitSystem } from '../parsers/units'
 import { formatDistance } from '../parsers/units'
 import { getDominantTimeBucket } from './overlay'
+import { generateCombinedSealSVG } from '../panels/seal'
 
 export function generateFilename(
   variant: 'stats' | 'clean',
@@ -77,11 +79,13 @@ export function exportWithStats(
   map: mapboxgl.Map,
   statsText: string,
   filename: string,
+  walks: Walk[] = [],
+  unit: UnitSystem = 'metric',
 ): void {
   const saved = boostRoutes(map)
   map.triggerRepaint()
 
-  requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
     const mapCanvas = map.getCanvas()
     const width = mapCanvas.width
     const height = mapCanvas.height
@@ -107,6 +111,10 @@ export function exportWithStats(
     ctx.textBaseline = 'middle'
     ctx.fillText(statsText, canvas.width / 2, height + pad * 2 + footerH / 2)
 
+    if (walks.length > 0) {
+      await compositeSeal(ctx, canvas.width, height + pad * 2, walks, unit, dpr)
+    }
+
     restoreRoutes(map, saved)
     triggerDownload(canvas.toDataURL('image/png'), filename)
   })
@@ -116,11 +124,13 @@ export function exportClean(
   map: mapboxgl.Map,
   _container: HTMLElement,
   filename: string,
+  walks: Walk[] = [],
+  unit: UnitSystem = 'metric',
 ): void {
   const saved = boostRoutes(map)
   map.triggerRepaint()
 
-  requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
     const mapCanvas = map.getCanvas()
     const width = mapCanvas.width
     const height = mapCanvas.height
@@ -139,6 +149,10 @@ export function exportClean(
 
     ctx.drawImage(mapCanvas, pad, pad)
 
+    if (walks.length > 0) {
+      await compositeSeal(ctx, canvas.width, canvas.height, walks, unit, dpr)
+    }
+
     restoreRoutes(map, saved)
     triggerDownload(canvas.toDataURL('image/png'), filename)
   })
@@ -151,4 +165,37 @@ function triggerDownload(dataUrl: string, filename: string): void {
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
+}
+
+function svgToImage(svgString: string, size: number): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const img = new Image()
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img) }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to render seal SVG')) }
+    img.width = size
+    img.height = size
+    img.src = url
+  })
+}
+
+async function compositeSeal(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  walks: Walk[],
+  unit: UnitSystem,
+  dpr: number,
+): Promise<void> {
+  try {
+    const sealSize = Math.round(120 * dpr)
+    const svg = await generateCombinedSealSVG(walks, sealSize, unit)
+    if (!svg) return
+    const img = await svgToImage(svg, sealSize)
+    const margin = Math.round(16 * dpr)
+    ctx.drawImage(img, canvasWidth - sealSize - margin, canvasHeight - sealSize - margin, sealSize, sealSize)
+  } catch {
+    // Seal compositing is optional — don't block the export
+  }
 }
