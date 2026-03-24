@@ -190,13 +190,13 @@ async function compositeSeal(
   dpr: number,
 ): Promise<void> {
   try {
-    const sealSize = Math.round(120 * dpr)
+    const sealSize = Math.round(150 * dpr)
     const svg = await generateCombinedSealSVG(walks, sealSize, unit)
     if (!svg) return
     const img = await svgToImage(svg)
-    const margin = Math.round(16 * dpr)
-    ctx.globalAlpha = 0.6
-    ctx.drawImage(img, canvasWidth - sealSize - margin, canvasHeight - sealSize - margin, sealSize, sealSize)
+    const margin = Math.round(24 * dpr)
+    ctx.globalAlpha = 0.5
+    ctx.drawImage(img, margin, canvasHeight - sealSize - margin, sealSize, sealSize)
     ctx.globalAlpha = 1.0
   } catch (err) {
     console.warn('Seal compositing failed:', err)
