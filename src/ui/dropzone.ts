@@ -3,12 +3,12 @@ import { createRouteAnimation } from './route-animation'
 const VALID_EXTENSIONS = ['.pilgrim', '.gpx']
 
 const QUOTES = [
-  'The path is made by walking',
-  'Not all who wander are lost',
-  'Every journey begins with a single step',
-  'Solvitur ambulando — it is solved by walking',
-  'Walk as if you are kissing the earth with your feet',
-  'The journey of a thousand miles begins beneath your feet',
+  'The cedar trees here must be hundreds of years old',
+  'Met a Korean woman who has been walking for 30 days',
+  'I put my hand on the stone wall and it is warm',
+  'The path changes every time because you change',
+  'The whole country is whispering the way',
+  'The water is so loud it fills your chest',
 ]
 
 const QUOTE_INTERVAL_MS = 20_000
