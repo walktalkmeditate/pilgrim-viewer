@@ -58,36 +58,61 @@ body {
 }
 
 .dropzone-samples {
+  margin-top: 2rem;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
-  margin-top: 1.5rem;
-  flex-wrap: wrap;
-  justify-content: center;
+  align-items: center;
 }
 
 .dropzone-samples-label {
   font-family: var(--font-ui);
   font-size: 0.75rem;
   color: var(--fog);
+  margin-bottom: 0.25rem;
+}
+
+.dropzone-sample-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+}
+
+.dropzone-sample-route {
+  color: var(--ink);
+  min-width: 10rem;
+  text-align: right;
 }
 
 .dropzone-sample-link {
   font-family: var(--font-ui);
   font-size: 0.75rem;
-  color: var(--stone);
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0.125rem 0;
-  text-decoration: underline;
-  text-decoration-color: var(--parchment-tertiary);
-  text-underline-offset: 2px;
-  transition: text-decoration-color 0.15s;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  transition: all 0.15s;
 }
 
-.dropzone-sample-link:hover {
-  text-decoration-color: var(--stone);
+.dropzone-sample-gpx {
+  color: var(--fog);
+}
+
+.dropzone-sample-gpx:hover {
+  color: var(--ink);
+  background: var(--parchment-tertiary);
+}
+
+.dropzone-sample-pilgrim {
+  color: var(--stone);
+  font-weight: 700;
+}
+
+.dropzone-sample-pilgrim:hover {
+  background: var(--parchment-secondary);
 }
 
 .dropzone-button {

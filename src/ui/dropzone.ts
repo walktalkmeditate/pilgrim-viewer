@@ -44,34 +44,51 @@ export function createDropZone(
   const samples = document.createElement('div')
   samples.className = 'dropzone-samples'
 
-  const samplesLabel = document.createElement('span')
+  const samplesLabel = document.createElement('div')
   samplesLabel.className = 'dropzone-samples-label'
-  samplesLabel.textContent = 'or try a sample:'
+  samplesLabel.textContent = 'or try a sample — same route, see the difference:'
 
   samples.appendChild(samplesLabel)
 
-  const sampleFiles = [
-    { name: 'kumano-kodo.pilgrim', label: 'Kumano Kodo (5 days)' },
-    { name: 'camino-santiago.pilgrim', label: 'Camino de Santiago (5 days)' },
-    { name: 'shikoku-88.pilgrim', label: 'Shikoku 88 (4 days)' },
-    { name: 'kumano-kodo.gpx', label: 'GPX only' },
+  const samplePairs = [
+    { route: 'Kumano Kodo, 5 days', gpx: 'kumano-kodo.gpx', pilgrim: 'kumano-kodo.pilgrim' },
+    { route: 'Camino de Santiago, 5 days', gpx: 'camino-santiago.gpx', pilgrim: 'camino-santiago.pilgrim' },
+    { route: 'Shikoku 88, 4 days', gpx: 'shikoku-88.gpx', pilgrim: 'shikoku-88.pilgrim' },
   ]
 
-  for (const sample of sampleFiles) {
-    const link = document.createElement('button')
-    link.className = 'dropzone-sample-link'
-    link.textContent = sample.label
-    link.addEventListener('click', async () => {
-      try {
-        const resp = await fetch(`${import.meta.env.BASE_URL}samples/${sample.name}`)
-        if (!resp.ok) throw new Error('Failed to load sample')
-        const buffer = await resp.arrayBuffer()
-        onFile(sample.name, buffer)
-      } catch {
-        showError()
-      }
-    })
-    samples.appendChild(link)
+  async function loadSample(filename: string): Promise<void> {
+    try {
+      const resp = await fetch(`${import.meta.env.BASE_URL}samples/${filename}`)
+      if (!resp.ok) throw new Error('Failed to load sample')
+      const buffer = await resp.arrayBuffer()
+      onFile(filename, buffer)
+    } catch {
+      showError()
+    }
+  }
+
+  for (const pair of samplePairs) {
+    const row = document.createElement('div')
+    row.className = 'dropzone-sample-row'
+
+    const routeName = document.createElement('span')
+    routeName.className = 'dropzone-sample-route'
+    routeName.textContent = pair.route
+
+    const gpxLink = document.createElement('button')
+    gpxLink.className = 'dropzone-sample-link dropzone-sample-gpx'
+    gpxLink.textContent = '.gpx'
+    gpxLink.addEventListener('click', () => { void loadSample(pair.gpx) })
+
+    const pilgrimLink = document.createElement('button')
+    pilgrimLink.className = 'dropzone-sample-link dropzone-sample-pilgrim'
+    pilgrimLink.textContent = '.pilgrim'
+    pilgrimLink.addEventListener('click', () => { void loadSample(pair.pilgrim) })
+
+    row.appendChild(routeName)
+    row.appendChild(gpxLink)
+    row.appendChild(pilgrimLink)
+    samples.appendChild(row)
   }
 
   wrapper.appendChild(title)

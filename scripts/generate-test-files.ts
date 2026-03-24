@@ -644,24 +644,45 @@ const shikokuContent: DayContent[] = [
   },
 ]
 
+// ── GPX Generator (multi-track) ──
+
+function generateMultiTrackGPX(name: string, days: RouteSpec[]): string {
+  const tracks = days.map((day) => {
+    const route = buildRoute(day)
+    const points = route.coords
+      .map((c, i) => {
+        const time = new Date(route.timestamps[i] * 1000).toISOString()
+        return `      <trkpt lat="${c[1].toFixed(6)}" lon="${c[0].toFixed(6)}"><ele>${c[2]}</ele><time>${time}</time></trkpt>`
+      })
+      .join('\n')
+    return `  <trk>
+    <name>${day.name}</name>
+    <trkseg>
+${points}
+    </trkseg>
+  </trk>`
+  })
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Pilgrim Viewer Test Data" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>${name}</name>
+  </metadata>
+${tracks.join('\n')}
+</gpx>`
+}
+
 // ── Generate Files ──
 
 async function main() {
-  // GPX file — Kumano Kodo full route (all days merged into one track, shows route but no rich data)
-  const allKumanoCoords: number[][] = []
-  const allKumanoTimestamps: number[] = []
-  for (const day of kumanoKodoDays) {
-    const route = buildRoute(day)
-    if (allKumanoCoords.length > 0) { route.coords.shift(); route.timestamps.shift() }
-    allKumanoCoords.push(...route.coords)
-    allKumanoTimestamps.push(...route.timestamps)
-  }
-  const kumanoGpx = generateGPX('Kumano Kodo — Nakahechi Route', allKumanoCoords, allKumanoTimestamps)
+  // For each pilgrimage: generate matching .gpx (multi-track, one per day) and .pilgrim
+
+  // Kumano Kodo
+  const kumanoGpx = generateMultiTrackGPX('Kumano Kodo — Nakahechi Route (5 days)', kumanoKodoDays)
   writeFileSync(join(DOWNLOADS, 'kumano-kodo.gpx'), kumanoGpx)
   writeFileSync(join(SAMPLES, 'kumano-kodo.gpx'), kumanoGpx)
-  console.log('Created kumano-kodo.gpx (full route, 1 track)')
+  console.log('Created kumano-kodo.gpx (5 tracks)')
 
-  // Pilgrim file — Kumano Kodo 5-day journey
   const kumanoWalks: any[] = []
   for (let i = 0; i < kumanoKodoDays.length; i++) {
     const route = buildRoute(kumanoKodoDays[i])
@@ -669,7 +690,12 @@ async function main() {
   }
   await buildPilgrimFile(kumanoWalks, 'kumano-kodo.pilgrim')
 
-  // Pilgrim file — Camino last 5 days
+  // Camino de Santiago
+  const caminoGpx = generateMultiTrackGPX('Camino de Santiago — Last 5 Days', caminoDays)
+  writeFileSync(join(DOWNLOADS, 'camino-santiago.gpx'), caminoGpx)
+  writeFileSync(join(SAMPLES, 'camino-santiago.gpx'), caminoGpx)
+  console.log('Created camino-santiago.gpx (5 tracks)')
+
   const caminoWalks: any[] = []
   for (let i = 0; i < caminoDays.length; i++) {
     const route = buildRoute(caminoDays[i])
@@ -677,7 +703,12 @@ async function main() {
   }
   await buildPilgrimFile(caminoWalks, 'camino-santiago.pilgrim')
 
-  // Pilgrim file — Shikoku first 4 days
+  // Shikoku 88
+  const shikokuGpx = generateMultiTrackGPX('Shikoku 88 — Temples 1 to 12 (4 days)', shikokuDays)
+  writeFileSync(join(DOWNLOADS, 'shikoku-88.gpx'), shikokuGpx)
+  writeFileSync(join(SAMPLES, 'shikoku-88.gpx'), shikokuGpx)
+  console.log('Created shikoku-88.gpx (4 tracks)')
+
   const shikokuWalks: any[] = []
   for (let i = 0; i < shikokuDays.length; i++) {
     const route = buildRoute(shikokuDays[i])
