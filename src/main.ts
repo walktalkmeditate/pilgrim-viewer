@@ -5,6 +5,7 @@ import { parseGPX } from './parsers/gpx'
 import { createMapRenderer } from './map/renderer'
 import { getMapboxToken, renderTokenPrompt } from './map/token'
 import { createLayout, renderPanels } from './ui/layout'
+import { createWalkList } from './ui/walk-list'
 import type { Walk, PilgrimManifest } from './parsers/types'
 
 const app = document.getElementById('app')!
@@ -55,7 +56,14 @@ function renderApp(): void {
 
   const mapRenderer = createMapRenderer(layout.mapContainer, token)
 
-  const walk = currentWalks[0]
-  mapRenderer.showWalk(walk)
-  renderPanels(layout.sidebar, walk, currentManifest)
+  if (currentWalks.length > 1) {
+    createWalkList(layout.sidebar, currentWalks, (walk) => {
+      mapRenderer.showWalk(walk)
+      renderPanels(layout.sidebar, walk, currentManifest)
+    })
+  } else {
+    const walk = currentWalks[0]
+    mapRenderer.showWalk(walk)
+    renderPanels(layout.sidebar, walk, currentManifest)
+  }
 }

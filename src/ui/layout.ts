@@ -106,13 +106,20 @@ export function renderPanels(
   walk: Walk,
   manifest?: PilgrimManifest,
 ): void {
-  sidebar.textContent = ''
+  let panelsContent = sidebar.querySelector<HTMLElement>('.panels-content')
+  if (!panelsContent) {
+    panelsContent = document.createElement('div')
+    panelsContent.className = 'panels-content'
+    sidebar.appendChild(panelsContent)
+  }
 
-  renderStatsPanel(sidebar, walk, manifest?.preferences)
-  renderElevationPanel(sidebar, walk)
-  renderTimelinePanel(sidebar, walk)
-  renderIntentionPanel(sidebar, walk)
-  renderWeatherPanel(sidebar, walk)
-  renderTranscriptionsPanel(sidebar, walk)
-  renderCelestialPanel(sidebar, walk)
+  panelsContent.textContent = ''
+
+  renderStatsPanel(panelsContent, walk, manifest?.preferences)
+  renderElevationPanel(panelsContent, walk)
+  renderTimelinePanel(panelsContent, walk)
+  renderIntentionPanel(panelsContent, walk)
+  renderWeatherPanel(panelsContent, walk)
+  renderTranscriptionsPanel(panelsContent, walk)
+  renderCelestialPanel(panelsContent, walk)
 }

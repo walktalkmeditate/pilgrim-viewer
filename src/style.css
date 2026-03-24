@@ -519,3 +519,41 @@ body {
 .position-retrograde {
   color: var(--rust);
 }
+
+/* Walk List */
+.walk-list {
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--parchment-tertiary);
+  padding-bottom: 0.75rem;
+}
+
+.walk-list-item {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  border-radius: 4px;
+  border-left: 3px solid transparent;
+  transition: background-color 0.15s;
+}
+
+.walk-list-item:hover {
+  background: var(--parchment-secondary);
+}
+
+.walk-list-item.selected {
+  background: var(--parchment-tertiary);
+  border-left-color: var(--stone);
+}
+
+.walk-list-date {
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.walk-list-stats {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--fog);
+  margin-top: 0.125rem;
+}
