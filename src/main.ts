@@ -222,6 +222,7 @@ function renderMultiWalk(
       const colorSwitcher = renderColorSwitcher(colorSwitcherContainer, (mode) => {
         colorMode = mode
         if (overlayRenderer) overlayRenderer.setColorMode(mode)
+        renderOverlaySidebarContent(walk)
       })
       colorSwitcher.setMode(colorMode)
 
