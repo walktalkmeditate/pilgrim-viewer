@@ -124,9 +124,89 @@ interface WalkStats {
   talkDuration: number      // seconds
   meditateDuration: number  // seconds
 }
+
+interface Weather {
+  temperature: number       // celsius
+  condition: string
+  humidity?: number
+  windSpeed?: number
+}
+
+interface Reflection {
+  style?: string
+  text?: string
+}
+
+interface VoiceRecording {
+  startDate: Date
+  endDate: Date
+  duration: number          // seconds
+  transcription?: string
+  wordsPerMinute?: number
+}
+
+interface Activity {
+  type: 'walk' | 'talk' | 'meditate'
+  startDate: Date
+  endDate: Date
+}
+
+interface Pause {
+  startDate: Date
+  endDate: Date
+  type: string
+}
+
+interface CelestialContext {
+  lunarPhase: {
+    name: string
+    illumination: number
+    age: number
+    isWaxing: boolean
+  }
+  planetaryPositions: Array<{
+    planet: string
+    sign: string
+    degree: number
+    isRetrograde: boolean
+  }>
+  planetaryHour: {
+    planet: string
+    planetaryDay: string
+  }
+  elementBalance: {
+    fire: number
+    earth: number
+    air: number
+    water: number
+    dominant?: string
+  }
+  seasonalMarker?: string
+  zodiacSystem: string
+}
 ```
 
 GPX parsing computes `stats` from trackpoints (distance via Haversine, duration from timestamps, ascent/descent from elevation). All pilgrim-only fields (`weather`, `intention`, `voiceRecordings`, `activities`, `celestial`) are left empty.
+
+### Parser Notes
+
+**Pilgrim parser:** The `celestialContext` in the iOS data model is nested inside `reflection`. The parser must extract it and hoist it to the top-level `celestial` field on the normalized Walk type.
+
+**GPX parser:** Supports `<trk>` → `<trkseg>` → `<trkpt>` elements. Each `<trk>` becomes one Walk. Multi-track GPX files produce multiple walks (same as multi-walk .pilgrim). `<rte>` and `<wpt>` elements are ignored in v1.
+
+### Fields Ignored in v1
+
+These fields exist in the .pilgrim format but are not displayed or parsed in v1:
+- `heartRates` — health data, may add in a future version
+- `workoutEvents` — internal app events, not meaningful for viewing
+- `isRace`, `isUserModified` — metadata flags, not useful for display
+- `finishedRecording` — could flag incomplete walks, but skip for now
+- `schemaVersion` — parser assumes version 1.0; log a warning for unrecognized versions
+- `manifest.customPromptStyles`, `manifest.intentions`, `manifest.events` — app-specific, not relevant to viewing individual walks
+
+### Unit Handling
+
+The .pilgrim manifest includes user preferences for `distanceUnit`, `altitudeUnit`, `speedUnit`. The viewer reads these and formats stats accordingly. GPX files default to metric. A small toggle in the stats panel allows switching between metric/imperial.
 
 ### .pilgrim File Format
 
@@ -145,7 +225,7 @@ Walk JSON uses seconds-since-epoch for all dates. Coordinates are `[longitude, l
 - Route as GeoJSON `line` layer, 3px, stone color
 - Auto-fit bounds with padding
 - Start/end point markers
-- If activities exist: color-coded route segments (moss=walk, gold=talk, rust=meditate)
+- If activities exist: color-coded route segments (moss=walk, dawn=talk, rust=meditate)
 
 ### Overlay View (multi-walk)
 
@@ -153,13 +233,15 @@ Walk JSON uses seconds-since-epoch for all dates. Coordinates are `[longitude, l
 - Each walk as its own GeoJSON source/layer
 - Season coloring by walk start date:
   - Spring (Mar–May): moss
-  - Summer (Jun–Aug): gold
+  - Summer (Jun–Aug): dawn
   - Autumn (Sep–Nov): rust
-  - Winter (Dec–Feb): blue
+  - Winter (Dec–Feb): blue (`#6B8EAE`)
 - 1.5px lines at 60% opacity — overlap compounds naturally
 - Floating stat bar: "12 walks · 87 km · 3 seasons"
 - Auto-fit bounds to all walks
-- Click a route to select → opens detail view
+- Click a route to highlight → sidebar shows that walk's details
+- Click "Back to list" or the overlay toggle to return
+- Season is determined by month (Northern hemisphere convention — a known simplification)
 
 ### Mapbox Token Strategy
 
@@ -194,9 +276,36 @@ Collapsible sections in the sidebar. Each panel only renders if its data exists.
 | Intention | — | yes | Intention text, reflection text |
 | Weather | — | yes | Temperature, condition, humidity, wind |
 | Transcriptions | — | yes | Voice recording transcripts with timestamps |
-| Celestial | — | yes | Lunar phase, planetary positions |
+| Celestial | — | yes | Lunar phase, planetary hour, element balance, planetary positions |
 
 The marketing gap is visual and immediate: drop a GPX → 2 panels. Drop a .pilgrim → 8 panels.
+
+## Multi-Walk Interaction Flow
+
+Two modes, toggled by a switch at the top of the sidebar:
+
+**List mode (default):**
+- Sidebar shows walk list (date, distance, duration per row)
+- Map shows the selected walk's route (single walk view)
+- Click a walk → map updates, panels show that walk's details
+- First walk is auto-selected on load
+
+**Overlay mode:**
+- Map switches to dark style, all walks rendered with season colors
+- Sidebar shows aggregate stats (total walks, distance, seasons)
+- Click a route on the map → highlight it, sidebar shows that walk's details inline (panels below the aggregate stats)
+- Click elsewhere on the map or "Clear selection" → back to aggregate view
+
+Switching modes preserves the selected walk if one is selected.
+
+## Error Handling
+
+- **Corrupt ZIP / invalid .pilgrim:** Show inline error message in the drop zone area: "Couldn't read this file. Make sure it's a valid .pilgrim or .gpx file." No modal dialogs.
+- **Walk JSON parse failure:** Skip the walk, show the rest. If all walks fail, show the error message.
+- **GPX with no trackpoints:** Show the error message — nothing to display.
+- **Missing elevation data:** Hide the elevation panel (same as any missing-data panel).
+- **Unrecognized schema version:** Parse anyway (best effort), log a console warning.
+- **Very large files (500+ walks):** No hard limit. The overlay may get slow — acceptable for v1. Mapbox GL handles thousands of features well.
 
 ## Design & Styling
 
@@ -206,11 +315,21 @@ Wabi-sabi — minimal, warm, quiet. Not a flashy web app.
 
 ### Colors
 
-- Background: warm parchment (`#f5f0eb`)
-- Text: ink (`#2c2c2c`)
-- Accent: stone (muted warm gray-brown)
-- Panel borders: fog (light gray, barely visible)
-- Activity: moss (walk), gold (talk), rust (meditate)
+From pilgrim-landing design system (canonical values):
+
+| Token | Light | Dark | Usage |
+|-------|-------|------|-------|
+| `--parchment` | `#F5F0E8` | `#1C1914` | Background |
+| `--parchment-secondary` | `#EDE6D8` | `#262118` | Panel backgrounds |
+| `--parchment-tertiary` | `#E4DBC9` | `#30291F` | Borders, hover |
+| `--ink` | `#2C241E` | `#F0EBE1` | Text |
+| `--stone` | `#8B7355` | `#B8976E` | Accent, route color |
+| `--moss` | `#7A8B6F` | `#95A895` | Walk activity |
+| `--rust` | `#A0634B` | `#C47E63` | Meditate activity |
+| `--dawn` | `#C4956A` | `#D4A87A` | Talk activity |
+| `--fog` | `#B8AFA2` | `#6B6359` | Subtle borders, metadata |
+
+Note: the original spec referenced "gold" for talk — using `--dawn` instead, which is the warm gold tone from the design system. Overlay season colors: moss (spring), dawn (summer), rust (autumn), `#6B8EAE` (winter blue — not in landing CSS, defined here).
 
 ### Typography
 
@@ -252,7 +371,17 @@ Sidebar collapses to bottom sheet. Map goes full-width. Panels scroll vertically
 | vite | Build + dev server |
 | typescript | Type checking |
 
-No charting library, CSS framework, state management, or test framework. Elevation profile is a hand-drawn canvas sparkline. Tests added later when parser logic warrants it.
+| vitest | Parser unit tests |
+
+No charting library, CSS framework, or state management. Elevation profile is a hand-drawn canvas sparkline.
+
+## Deployment
+
+- **Hosting:** Cloudflare Pages (static site, free tier, consistent with existing Cloudflare infrastructure)
+- **Build:** `npm run build` → Vite outputs to `dist/`
+- **Env:** `VITE_MAPBOX_TOKEN` set as a Cloudflare Pages environment variable
+- **Domain:** `view.pilgrimapp.org` pointed at Cloudflare Pages via CNAME
+- **CI:** GitHub Actions — type check, run tests, build, deploy to Cloudflare Pages on push to main
 
 ## Related Systems
 
