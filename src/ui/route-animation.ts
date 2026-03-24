@@ -46,8 +46,10 @@ const ROUTES: Route[] = [
   },
 ]
 
-const LINE_WIDTH = 2
-const PAUSE_FRAMES = 90
+const BASE_LINE_WIDTH = 1.5
+const MAX_LINE_WIDTH = 3.5
+const FRAMES_PER_SEGMENT = 20
+const PAUSE_FRAMES = 120
 const ROUTE_PADDING = 0.15
 
 function isDarkMode(): boolean {
@@ -130,6 +132,7 @@ export function createRouteAnimation(container: HTMLElement): { stop: () => void
   let segmentIndex = 0
   let pauseCounter = 0
   let fadeOutCounter = 0
+  let frameCounter = 0
   let currentOpacity = 1
   let canvasW = 0
   let canvasH = 0
@@ -147,6 +150,16 @@ export function createRouteAnimation(container: HTMLElement): { stop: () => void
     redrawCurrent()
   }
 
+  function getSegmentWidth(route: Route, i: number): number {
+    if (i <= 0 || i >= route.coords.length) return BASE_LINE_WIDTH
+    const dx = route.coords[i][0] - route.coords[i - 1][0]
+    const dy = route.coords[i][1] - route.coords[i - 1][1]
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    const maxDist = 0.05
+    const t = Math.min(dist / maxDist, 1)
+    return BASE_LINE_WIDTH + (MAX_LINE_WIDTH - BASE_LINE_WIDTH) * (1 - t)
+  }
+
   function redrawCurrent(): void {
     ctx!.clearRect(0, 0, canvasW, canvasH)
     if (segmentIndex <= 0) return
@@ -155,24 +168,26 @@ export function createRouteAnimation(container: HTMLElement): { stop: () => void
     const bounds = computeRouteBounds(route)
 
     ctx!.strokeStyle = getRouteColor(route)
-    ctx!.lineWidth = LINE_WIDTH
     ctx!.lineCap = 'round'
     ctx!.lineJoin = 'round'
     ctx!.globalAlpha = currentOpacity
-    ctx!.beginPath()
-
-    const [startX, startY] = projectToCanvas(
-      route.coords[0][0], route.coords[0][1], bounds, canvasW, canvasH,
-    )
-    ctx!.moveTo(startX, startY)
 
     for (let i = 1; i <= segmentIndex && i < route.coords.length; i++) {
-      const [x, y] = projectToCanvas(
+      const [x0, y0] = projectToCanvas(
+        route.coords[i - 1][0], route.coords[i - 1][1], bounds, canvasW, canvasH,
+      )
+      const [x1, y1] = projectToCanvas(
         route.coords[i][0], route.coords[i][1], bounds, canvasW, canvasH,
       )
-      ctx!.lineTo(x, y)
+      const midX = (x0 + x1) / 2
+      const midY = (y0 + y1) / 2
+
+      ctx!.lineWidth = getSegmentWidth(route, i)
+      ctx!.beginPath()
+      ctx!.moveTo(x0, y0)
+      ctx!.quadraticCurveTo(midX + (y1 - y0) * 0.1, midY - (x1 - x0) * 0.1, x1, y1)
+      ctx!.stroke()
     }
-    ctx!.stroke()
     ctx!.globalAlpha = 1
   }
 
@@ -194,14 +209,17 @@ export function createRouteAnimation(container: HTMLElement): { stop: () => void
       bounds, canvasW, canvasH,
     )
 
+    const midX = (fromX + toX) / 2
+    const midY = (fromY + toY) / 2
+
     ctx!.strokeStyle = getRouteColor(route)
-    ctx!.lineWidth = LINE_WIDTH
+    ctx!.lineWidth = getSegmentWidth(route, segmentIndex + 1)
     ctx!.lineCap = 'round'
     ctx!.lineJoin = 'round'
     ctx!.globalAlpha = currentOpacity
     ctx!.beginPath()
     ctx!.moveTo(fromX, fromY)
-    ctx!.lineTo(toX, toY)
+    ctx!.quadraticCurveTo(midX + (toY - fromY) * 0.1, midY - (toX - fromX) * 0.1, toX, toY)
     ctx!.stroke()
     ctx!.globalAlpha = 1
 
@@ -232,7 +250,12 @@ export function createRouteAnimation(container: HTMLElement): { stop: () => void
       return
     }
 
-    drawNextSegment()
+    frameCounter++
+    if (frameCounter >= FRAMES_PER_SEGMENT) {
+      frameCounter = 0
+      drawNextSegment()
+    }
+
     animationId = requestAnimationFrame(frame)
   }
 
