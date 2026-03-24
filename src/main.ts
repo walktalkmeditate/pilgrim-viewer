@@ -17,7 +17,8 @@ import { exportWithStats, exportClean, generateFilename } from './map/export'
 import { createWalkList } from './ui/walk-list'
 import { createUnitToggle, resolveInitialUnit } from './ui/unit-toggle'
 import type { UnitSystem } from './parsers/units'
-import type { Walk, PilgrimManifest } from './parsers/types'
+import { parsePilgrimWalkJSON } from './parsers/pilgrim'
+import type { Walk, PilgrimManifest, PilgrimPreferences } from './parsers/types'
 
 const app = document.getElementById('app')!
 
@@ -28,6 +29,44 @@ let activeOverlayRenderer: ReturnType<typeof createOverlayRenderer> | null = nul
 let currentUnit: UnitSystem = resolveInitialUnit()
 
 createDropZone(app, handleFile)
+
+interface PilgrimViewerAPI {
+  loadData(data: {
+    walks: unknown[]
+    manifest?: { preferences?: PilgrimPreferences; [key: string]: unknown }
+  }): void
+}
+
+const pilgrimViewer: PilgrimViewerAPI = {
+  loadData(data) {
+    try {
+      const walks = data.walks.map((raw) => parsePilgrimWalkJSON(raw))
+      if (walks.length === 0) return
+
+      currentWalks = walks
+      currentManifest = data.manifest
+        ? {
+            schemaVersion: String(data.manifest.schemaVersion ?? '1.0'),
+            exportDate: Number(data.manifest.exportDate ?? Date.now() / 1000),
+            appVersion: String(data.manifest.appVersion ?? '1.0.0'),
+            walkCount: walks.length,
+            preferences: data.manifest.preferences ?? {
+              distanceUnit: 'km',
+              altitudeUnit: 'm',
+              speedUnit: 'min/km',
+              energyUnit: 'kcal',
+            },
+          }
+        : undefined
+
+      renderApp()
+    } catch (err) {
+      console.error('pilgrimViewer.loadData failed:', err)
+    }
+  },
+}
+
+;(window as unknown as { pilgrimViewer: PilgrimViewerAPI }).pilgrimViewer = pilgrimViewer
 
 function goHome(): void {
   if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
