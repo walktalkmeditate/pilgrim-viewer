@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#1C1914"/>
+
+  <!-- Kumano Kodo route (moss) -->
+  <polyline points="280,120 290,115 310,100 340,90 370,80 400,75 430,85 460,100 480,130 490,170 500,220 480,300 450,310 420,315 390,320 360,330 340,350 330,420"
+    fill="none" stroke="#7A8B6F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+
+  <!-- Camino route (rust) -->
+  <polyline points="150,280 180,290 220,295 270,300 310,298 360,290 410,275 460,265 510,260 560,258 610,262 650,270 690,275 730,268 770,255 810,248 850,245 890,250 920,260"
+    fill="none" stroke="#A0634B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+
+  <!-- Shikoku route (dawn) -->
+  <polyline points="700,150 710,160 725,175 740,190 755,210 770,225 790,245 810,260 835,280 860,300 885,315 910,325 930,340 945,360 955,380"
+    fill="none" stroke="#C4956A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+
+  <!-- Additional faint traces for depth -->
+  <polyline points="100,400 140,390 190,380 250,375 300,385 340,400 380,420 420,430 470,425 520,410 570,395 620,385 680,390"
+    fill="none" stroke="#6B8EAE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.25"/>
+
+  <polyline points="600,100 630,120 670,135 720,130 760,115 800,110 840,120 870,140 890,165 900,190"
+    fill="none" stroke="#7A8B6F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.2"/>
+
+  <!-- Title -->
+  <text x="600" y="510" text-anchor="middle" font-family="Georgia, serif" font-size="48" font-weight="300" font-style="italic" fill="#F0EBE1" opacity="0.9">Pilgrim Viewer</text>
+
+  <!-- Subtitle -->
+  <text x="600" y="560" text-anchor="middle" font-family="Helvetica Neue, sans-serif" font-size="18" fill="#B8AFA2" letter-spacing="2">VIEW YOUR WALKS · .PILGRIM &amp; .GPX</text>
+
+  <!-- Subtle tagline -->
+  <text x="600" y="595" text-anchor="middle" font-family="Helvetica Neue, sans-serif" font-size="13" fill="#6B6359" letter-spacing="1">YOUR DATA STAYS ON YOUR DEVICE</text>
+</svg>
