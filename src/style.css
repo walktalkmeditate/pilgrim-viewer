@@ -48,8 +48,7 @@ body {
   justify-content: center;
   min-height: 100vh;
   padding: 2rem;
-  border: 2px dashed var(--fog);
-  transition: border-color 0.2s;
+  overflow: hidden;
 }
 
 .dropzone > *:not(.dropzone-canvas) {
@@ -68,7 +67,7 @@ body {
 }
 
 .dropzone.drag-active {
-  border-color: var(--stone);
+  background: var(--parchment-secondary);
 }
 
 .dropzone-title {
