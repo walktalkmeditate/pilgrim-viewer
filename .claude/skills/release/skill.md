@@ -97,7 +97,7 @@ git push origin main
 git push origin "v{version}"
 ```
 
-The push to main triggers `.github/workflows/deploy.yml` which builds and deploys to GitHub Pages. The tag is used for the GitHub release.
+The GitHub release (step 7) triggers `.github/workflows/deploy.yml` which builds and deploys to GitHub Pages. Normal pushes to main only run CI — deploy is release-only.
 
 ### 7. Create GitHub release
 
