@@ -261,3 +261,90 @@ body {
   align-items: center;
   gap: 0.25rem;
 }
+
+/* Divider */
+.panel-divider {
+  border: none;
+  border-top: 1px solid var(--parchment-tertiary);
+  margin: 0.75rem 0;
+}
+
+/* Intention */
+.intention-text {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: var(--ink);
+  margin: 0;
+}
+
+.reflection-style {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.reflection-text {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+  margin: 0;
+}
+
+/* Weather */
+.weather-temp {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 300;
+  color: var(--ink);
+  margin-bottom: 0.25rem;
+}
+
+.weather-condition {
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  color: var(--stone);
+  margin-bottom: 0.5rem;
+}
+
+/* Transcriptions */
+.transcriptions-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.transcription-entry {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--parchment-tertiary);
+}
+
+.transcription-entry:last-child {
+  border-bottom: none;
+}
+
+.transcription-time {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+  margin-bottom: 0.125rem;
+}
+
+.transcription-text {
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.transcription-enhanced {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+  margin-left: 0.25rem;
+}
