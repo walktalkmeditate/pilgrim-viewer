@@ -3,8 +3,11 @@ import { createDropZone } from './ui/dropzone'
 import { parsePilgrim } from './parsers/pilgrim'
 import { parseGPX } from './parsers/gpx'
 import { createMapRenderer } from './map/renderer'
+import { createOverlayRenderer } from './map/overlay'
+import type { OverlayRenderer } from './map/overlay'
 import { getMapboxToken, renderTokenPrompt } from './map/token'
-import { createLayout, renderPanels } from './ui/layout'
+import { createLayout, renderPanels, renderModeToggle, renderOverlaySidebar } from './ui/layout'
+import type { ModeToggleResult } from './ui/layout'
 import { createWalkList } from './ui/walk-list'
 import type { Walk, PilgrimManifest } from './parsers/types'
 
@@ -57,13 +60,105 @@ function renderApp(): void {
   const mapRenderer = createMapRenderer(layout.mapContainer, token)
 
   if (currentWalks.length > 1) {
-    createWalkList(layout.sidebar, currentWalks, (walk) => {
-      mapRenderer.showWalk(walk)
-      renderPanels(layout.sidebar, walk, currentManifest)
-    })
+    renderMultiWalk(layout, mapRenderer, token)
   } else {
     const walk = currentWalks[0]
     mapRenderer.showWalk(walk)
     renderPanels(layout.sidebar, walk, currentManifest)
   }
+}
+
+function renderMultiWalk(
+  layout: { sidebar: HTMLElement; mapContainer: HTMLElement; overlayMapContainer: HTMLElement },
+  mapRenderer: ReturnType<typeof createMapRenderer>,
+  token: string,
+): void {
+  let mode: 'list' | 'overlay' = 'list'
+  let selectedWalk: Walk | null = null
+  let overlayRenderer: OverlayRenderer | null = null
+  let walkList: { select: (index: number) => void } | null = null
+  let modeToggle: ModeToggleResult | null = null
+
+  function showListMode(): void {
+    layout.mapContainer.style.display = ''
+    layout.overlayMapContainer.style.display = 'none'
+    layout.sidebar.textContent = ''
+
+    modeToggle = renderModeToggle(layout.sidebar, handleModeToggle)
+    modeToggle.setMode('list')
+
+    walkList = createWalkList(layout.sidebar, currentWalks, (walk) => {
+      selectedWalk = walk
+      mapRenderer.showWalk(walk)
+      renderPanels(layout.sidebar, walk, currentManifest)
+    })
+
+    if (selectedWalk) {
+      const idx = currentWalks.indexOf(selectedWalk)
+      if (idx >= 0 && walkList) {
+        walkList.select(idx)
+      }
+    }
+  }
+
+  function showOverlayMode(): void {
+    layout.mapContainer.style.display = 'none'
+    layout.overlayMapContainer.style.display = ''
+
+    if (!overlayRenderer) {
+      overlayRenderer = createOverlayRenderer(layout.overlayMapContainer, token)
+      overlayRenderer.onWalkClick(handleOverlayWalkClick)
+    }
+
+    overlayRenderer.showAllWalks(currentWalks)
+    renderOverlaySidebarContent(null)
+  }
+
+  function renderOverlaySidebarContent(walk: Walk | null): void {
+    layout.sidebar.textContent = ''
+
+    modeToggle = renderModeToggle(layout.sidebar, handleModeToggle)
+    modeToggle.setMode('overlay')
+
+    renderOverlaySidebar(layout.sidebar, currentWalks, {
+      selectedWalk: walk ?? undefined,
+      manifest: currentManifest,
+      onBackToList: walk
+        ? () => {
+            selectedWalk = null
+            if (overlayRenderer) overlayRenderer.clearSelection()
+            renderOverlaySidebarContent(null)
+          }
+        : undefined,
+      onClearSelection: walk
+        ? () => {
+            selectedWalk = null
+            if (overlayRenderer) overlayRenderer.clearSelection()
+            renderOverlaySidebarContent(null)
+          }
+        : undefined,
+    })
+  }
+
+  function handleOverlayWalkClick(walk: Walk): void {
+    selectedWalk = walk
+    if (overlayRenderer) overlayRenderer.highlightWalk(walk)
+    renderOverlaySidebarContent(walk)
+  }
+
+  function handleModeToggle(newMode: 'list' | 'overlay'): void {
+    if (newMode === mode) return
+    mode = newMode
+
+    if (mode === 'list') {
+      if (overlayRenderer) {
+        overlayRenderer.clear()
+      }
+      showListMode()
+    } else {
+      showOverlayMode()
+    }
+  }
+
+  showListMode()
 }

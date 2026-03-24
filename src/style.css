@@ -557,3 +557,98 @@ body {
   color: var(--fog);
   margin-top: 0.125rem;
 }
+
+/* Overlay */
+.overlay-map-container {
+  position: relative;
+}
+
+.overlay-stats {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(245, 240, 232, 0.92);
+  backdrop-filter: blur(8px);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  color: var(--ink);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Mode Toggle */
+.mode-toggle {
+  display: flex;
+  background: var(--parchment-tertiary);
+  border-radius: 16px;
+  padding: 2px;
+  margin-bottom: 0.75rem;
+}
+
+.mode-toggle-option {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 14px;
+  border: none;
+  background: transparent;
+  color: var(--fog);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mode-toggle-option.active {
+  background: var(--parchment);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* Overlay sidebar */
+.overlay-aggregate {
+  margin-bottom: 0.75rem;
+}
+
+.overlay-aggregate-stat {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: var(--ink);
+  text-align: center;
+  margin-bottom: 0.25rem;
+}
+
+.overlay-aggregate-label {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--fog);
+  text-align: center;
+}
+
+.back-to-list {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--stone);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 0.75rem;
+}
+
+.back-to-list:hover {
+  text-decoration: underline;
+}
+
+.clear-selection {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 0.5rem;
+}

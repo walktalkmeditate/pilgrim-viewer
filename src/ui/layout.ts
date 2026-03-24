@@ -6,6 +6,8 @@ import { renderIntentionPanel } from '../panels/intention'
 import { renderWeatherPanel } from '../panels/weather'
 import { renderTranscriptionsPanel } from '../panels/transcriptions'
 import { renderCelestialPanel } from '../panels/celestial'
+import { formatDistance } from '../parsers/units'
+import { getSeasonColor } from '../map/overlay'
 
 const GITHUB_URL = 'https://github.com/walktalkmeditate/pilgrim-viewer'
 const PILGRIM_URL = 'https://pilgrimapp.org'
@@ -13,6 +15,7 @@ const PILGRIM_URL = 'https://pilgrimapp.org'
 export interface LayoutResult {
   sidebar: HTMLElement
   mapContainer: HTMLElement
+  overlayMapContainer: HTMLElement
   showFileLoaded: (source: 'pilgrim' | 'gpx', openFilePicker: () => void) => void
 }
 
@@ -80,8 +83,13 @@ export function createLayout(app: HTMLElement): LayoutResult {
   const mapContainer = document.createElement('div')
   mapContainer.className = 'map-container'
 
+  const overlayMapContainer = document.createElement('div')
+  overlayMapContainer.className = 'map-container overlay-map-container'
+  overlayMapContainer.style.display = 'none'
+
   layout.appendChild(sidebar)
   layout.appendChild(mapContainer)
+  layout.appendChild(overlayMapContainer)
 
   app.appendChild(header)
   app.appendChild(layout)
@@ -98,7 +106,7 @@ export function createLayout(app: HTMLElement): LayoutResult {
     }
   }
 
-  return { sidebar: panelsContainer, mapContainer, showFileLoaded }
+  return { sidebar: panelsContainer, mapContainer, overlayMapContainer, showFileLoaded }
 }
 
 export function renderPanels(
@@ -122,4 +130,159 @@ export function renderPanels(
   renderWeatherPanel(panelsContent, walk)
   renderTranscriptionsPanel(panelsContent, walk)
   renderCelestialPanel(panelsContent, walk)
+}
+
+export interface ModeToggleResult {
+  setMode: (mode: 'list' | 'overlay') => void
+}
+
+export function renderModeToggle(
+  container: HTMLElement,
+  onToggle: (mode: 'list' | 'overlay') => void,
+): ModeToggleResult {
+  const toggle = document.createElement('div')
+  toggle.className = 'mode-toggle'
+
+  const listBtn = document.createElement('button')
+  listBtn.className = 'mode-toggle-option active'
+  listBtn.textContent = 'List'
+
+  const overlayBtn = document.createElement('button')
+  overlayBtn.className = 'mode-toggle-option'
+  overlayBtn.textContent = 'Overlay'
+
+  listBtn.addEventListener('click', () => {
+    setMode('list')
+    onToggle('list')
+  })
+
+  overlayBtn.addEventListener('click', () => {
+    setMode('overlay')
+    onToggle('overlay')
+  })
+
+  toggle.appendChild(listBtn)
+  toggle.appendChild(overlayBtn)
+
+  container.insertBefore(toggle, container.firstChild)
+
+  function setMode(mode: 'list' | 'overlay'): void {
+    listBtn.classList.toggle('active', mode === 'list')
+    overlayBtn.classList.toggle('active', mode === 'overlay')
+  }
+
+  return { setMode }
+}
+
+function countUniqueSeasons(walks: Walk[]): number {
+  const seasons = new Set<string>()
+  for (const walk of walks) {
+    const month = walk.startDate.getMonth()
+    if (month >= 2 && month <= 4) seasons.add('spring')
+    else if (month >= 5 && month <= 7) seasons.add('summer')
+    else if (month >= 8 && month <= 10) seasons.add('autumn')
+    else seasons.add('winter')
+  }
+  return seasons.size
+}
+
+export function renderOverlaySidebar(
+  sidebar: HTMLElement,
+  walks: Walk[],
+  options: {
+    onBackToList?: () => void
+    onClearSelection?: () => void
+    selectedWalk?: Walk
+    manifest?: PilgrimManifest
+  } = {},
+): void {
+  let panelsContent = sidebar.querySelector<HTMLElement>('.panels-content')
+  if (!panelsContent) {
+    panelsContent = document.createElement('div')
+    panelsContent.className = 'panels-content'
+    sidebar.appendChild(panelsContent)
+  }
+
+  panelsContent.textContent = ''
+
+  const aggregate = document.createElement('div')
+  aggregate.className = 'overlay-aggregate'
+
+  const totalDistance = walks.reduce((sum, w) => sum + w.stats.distance, 0)
+  const seasonCount = countUniqueSeasons(walks)
+
+  const walkStat = document.createElement('div')
+  walkStat.className = 'overlay-aggregate-stat'
+  walkStat.textContent = String(walks.length)
+
+  const walkLabel = document.createElement('div')
+  walkLabel.className = 'overlay-aggregate-label'
+  walkLabel.textContent = walks.length === 1 ? 'walk' : 'walks'
+
+  const distStat = document.createElement('div')
+  distStat.className = 'overlay-aggregate-stat'
+  distStat.textContent = formatDistance(totalDistance)
+
+  const distLabel = document.createElement('div')
+  distLabel.className = 'overlay-aggregate-label'
+  distLabel.textContent = 'total distance'
+
+  const seasonStat = document.createElement('div')
+  seasonStat.className = 'overlay-aggregate-stat'
+  seasonStat.textContent = String(seasonCount)
+
+  const seasonLabel = document.createElement('div')
+  seasonLabel.className = 'overlay-aggregate-label'
+  seasonLabel.textContent = seasonCount === 1 ? 'season' : 'seasons'
+
+  aggregate.appendChild(walkStat)
+  aggregate.appendChild(walkLabel)
+  aggregate.appendChild(distStat)
+  aggregate.appendChild(distLabel)
+  aggregate.appendChild(seasonStat)
+  aggregate.appendChild(seasonLabel)
+
+  panelsContent.appendChild(aggregate)
+
+  if (options.selectedWalk) {
+    if (options.onBackToList) {
+      const backBtn = document.createElement('button')
+      backBtn.className = 'back-to-list'
+
+      const walkDate = options.selectedWalk.startDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+
+      const colorDot = document.createElement('span')
+      colorDot.className = 'breakdown-dot'
+      colorDot.style.backgroundColor = getSeasonColor(options.selectedWalk.startDate)
+      colorDot.style.display = 'inline-block'
+      colorDot.style.marginRight = '0.375rem'
+      colorDot.style.verticalAlign = 'middle'
+
+      backBtn.appendChild(colorDot)
+      backBtn.appendChild(document.createTextNode(walkDate))
+
+      backBtn.addEventListener('click', options.onBackToList)
+      panelsContent.appendChild(backBtn)
+    }
+
+    renderStatsPanel(panelsContent, options.selectedWalk, options.manifest?.preferences)
+    renderElevationPanel(panelsContent, options.selectedWalk)
+    renderTimelinePanel(panelsContent, options.selectedWalk)
+    renderIntentionPanel(panelsContent, options.selectedWalk)
+    renderWeatherPanel(panelsContent, options.selectedWalk)
+    renderTranscriptionsPanel(panelsContent, options.selectedWalk)
+    renderCelestialPanel(panelsContent, options.selectedWalk)
+
+    if (options.onClearSelection) {
+      const clearBtn = document.createElement('button')
+      clearBtn.className = 'clear-selection'
+      clearBtn.textContent = 'Clear selection'
+      clearBtn.addEventListener('click', options.onClearSelection)
+      panelsContent.appendChild(clearBtn)
+    }
+  }
 }
