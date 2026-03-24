@@ -151,6 +151,18 @@ body {
   margin: 1.5rem 0 0;
 }
 
+.dropzone-github {
+  display: inline-flex;
+  color: var(--fog);
+  opacity: 0.4;
+  margin-top: 1.5rem;
+  transition: opacity 0.2s;
+}
+
+.dropzone-github:hover {
+  opacity: 0.8;
+}
+
 .dropzone-quote {
   font-family: var(--font-display);
   font-style: italic;
