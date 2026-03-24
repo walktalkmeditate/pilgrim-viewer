@@ -286,7 +286,7 @@ function generateSealSvg(
   const topArc = `M ${cx - arcR},${cy} A ${arcR},${arcR} 0 0,1 ${cx + arcR},${cy}`
   const bottomArc = `M ${cx + arcR},${cy + size * 0.06} A ${arcR},${arcR} 0 0,1 ${cx - arcR},${cy + size * 0.06}`
 
-  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="Walk seal">
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="Walk seal">
 <defs>
   <filter id="${filterId}">
     <feTurbulence type="turbulence" baseFrequency="${weatherParams.freq}" numOctaves="${weatherParams.octaves}" seed="${bytes[31]}"/>

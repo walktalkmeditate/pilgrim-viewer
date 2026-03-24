@@ -113,7 +113,7 @@ export function exportWithStats(
     restoreRoutes(map, saved)
 
     if (walks.length > 0) {
-      compositeSeal(ctx, canvas.width, height + pad * 2, walks, unit, dpr).then(() => {
+      compositeSeal(ctx, canvas.width, height + pad * 2, walks, unit, dpr).finally(() => {
         triggerDownload(canvas.toDataURL('image/png'), filename)
       })
     } else {
@@ -198,7 +198,7 @@ async function compositeSeal(
     ctx.globalAlpha = 0.6
     ctx.drawImage(img, canvasWidth - sealSize - margin, canvasHeight - sealSize - margin, sealSize, sealSize)
     ctx.globalAlpha = 1.0
-  } catch {
-    // Seal compositing is optional — don't block the export
+  } catch (err) {
+    console.warn('Seal compositing failed:', err)
   }
 }
