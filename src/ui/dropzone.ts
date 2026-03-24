@@ -160,8 +160,8 @@ export function createDropZone(
 
   const quoteRotator = createQuoteRotator(wrapper)
 
-  wrapper.appendChild(githubLink)
   wrapper.appendChild(errorMsg)
+  wrapper.appendChild(githubLink)
   container.appendChild(wrapper)
 
   animation = createRouteAnimation(wrapper)

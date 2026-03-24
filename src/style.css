@@ -47,8 +47,9 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  padding: 2rem;
-  overflow: hidden;
+  padding: 2rem 2rem 3rem;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .dropzone > *:not(.dropzone-canvas) {
@@ -154,13 +155,13 @@ body {
 .dropzone-github {
   display: inline-flex;
   color: var(--fog);
-  opacity: 0.4;
-  margin-top: 1.5rem;
+  opacity: 0.6;
+  margin-top: 2rem;
   transition: opacity 0.2s;
 }
 
 .dropzone-github:hover {
-  opacity: 0.8;
+  opacity: 1;
 }
 
 .dropzone-quote {
