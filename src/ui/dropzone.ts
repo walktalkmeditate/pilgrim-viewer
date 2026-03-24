@@ -51,10 +51,10 @@ export function createDropZone(
   samples.appendChild(samplesLabel)
 
   const sampleFiles = [
-    { name: 'kumano-kodo.pilgrim', label: 'Kumano Kodo' },
-    { name: 'camino-sarria.pilgrim', label: 'Camino de Santiago' },
-    { name: 'pilgrimages-collection.pilgrim', label: '2 walks' },
-    { name: 'kumano-kodo-takijiri.gpx', label: 'GPX only' },
+    { name: 'kumano-kodo.pilgrim', label: 'Kumano Kodo (5 days)' },
+    { name: 'camino-santiago.pilgrim', label: 'Camino de Santiago (5 days)' },
+    { name: 'shikoku-88.pilgrim', label: 'Shikoku 88 (4 days)' },
+    { name: 'kumano-kodo.gpx', label: 'GPX only' },
   ]
 
   for (const sample of sampleFiles) {
