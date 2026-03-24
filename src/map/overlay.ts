@@ -102,6 +102,8 @@ export function createOverlayRenderer(
     container,
     style: 'mapbox://styles/mapbox/dark-v11',
     preserveDrawingBuffer: true,
+    center: [0, 20],
+    zoom: 1,
   })
 
   const activeSourceIds: string[] = []

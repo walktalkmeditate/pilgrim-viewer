@@ -1,4 +1,5 @@
 import type { Walk } from '../parsers/types'
+import type { UnitSystem } from '../parsers/units'
 
 function formatCondition(condition: string): string {
   return condition
@@ -24,7 +25,7 @@ function createStatRow(label: string, value: string): HTMLElement {
   return row
 }
 
-export function renderWeatherPanel(container: HTMLElement, walk: Walk): void {
+export function renderWeatherPanel(container: HTMLElement, walk: Walk, unit: UnitSystem = 'metric'): void {
   if (!walk.weather) return
 
   const { weather } = walk
@@ -39,7 +40,11 @@ export function renderWeatherPanel(container: HTMLElement, walk: Walk): void {
 
   const tempEl = document.createElement('div')
   tempEl.className = 'weather-temp'
-  tempEl.textContent = `${weather.temperature}°C`
+  if (unit === 'imperial') {
+    tempEl.textContent = `${Math.round(weather.temperature * 9 / 5 + 32)}°F`
+  } else {
+    tempEl.textContent = `${Math.round(weather.temperature * 10) / 10}°C`
+  }
   panel.appendChild(tempEl)
 
   const conditionEl = document.createElement('div')
@@ -48,11 +53,16 @@ export function renderWeatherPanel(container: HTMLElement, walk: Walk): void {
   panel.appendChild(conditionEl)
 
   if (weather.humidity != null) {
-    panel.appendChild(createStatRow('Humidity', `${weather.humidity}%`))
+    const pct = weather.humidity <= 1 ? Math.round(weather.humidity * 100) : Math.round(weather.humidity)
+    panel.appendChild(createStatRow('Humidity', `${pct}%`))
   }
 
   if (weather.windSpeed != null) {
-    panel.appendChild(createStatRow('Wind', `${weather.windSpeed} m/s`))
+    if (unit === 'imperial') {
+      panel.appendChild(createStatRow('Wind', `${Math.round(weather.windSpeed * 2.237)} mph`))
+    } else {
+      panel.appendChild(createStatRow('Wind', `${Math.round(weather.windSpeed * 10) / 10} m/s`))
+    }
   }
 
   container.appendChild(panel)

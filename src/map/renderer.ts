@@ -35,6 +35,8 @@ export function createMapRenderer(
   const map = new mapboxgl.Map({
     container,
     style: 'mapbox://styles/mapbox/light-v11',
+    center: [0, 20],
+    zoom: 1,
   })
 
   const activeLayers: string[] = []

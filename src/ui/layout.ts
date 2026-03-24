@@ -190,7 +190,7 @@ export function renderPanels(
   renderElevationPanel(panelsContent, walk, unit)
   renderTimelinePanel(panelsContent, walk)
   renderIntentionPanel(panelsContent, walk)
-  renderWeatherPanel(panelsContent, walk)
+  renderWeatherPanel(panelsContent, walk, unit)
   renderTranscriptionsPanel(panelsContent, walk)
   renderCelestialPanel(panelsContent, walk)
 
@@ -403,7 +403,7 @@ export function renderOverlaySidebar(
     renderElevationPanel(panelsContent, options.selectedWalk, unit)
     renderTimelinePanel(panelsContent, options.selectedWalk)
     renderIntentionPanel(panelsContent, options.selectedWalk)
-    renderWeatherPanel(panelsContent, options.selectedWalk)
+    renderWeatherPanel(panelsContent, options.selectedWalk, unit)
     renderTranscriptionsPanel(panelsContent, options.selectedWalk)
     renderCelestialPanel(panelsContent, options.selectedWalk)
 
