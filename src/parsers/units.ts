@@ -18,14 +18,15 @@ export function formatDistance(meters: number, unit: UnitSystem = 'metric'): str
 }
 
 export function formatDuration(seconds: number): string {
-  if (seconds >= 3600) {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
+  const total = Math.round(seconds)
+  if (total >= 3600) {
+    const hours = Math.floor(total / 3600)
+    const minutes = Math.floor((total % 3600) / 60)
     return `${hours}h ${minutes}m`
   }
 
-  const minutes = Math.floor(seconds / 60)
-  const remainingSeconds = seconds % 60
+  const minutes = Math.floor(total / 60)
+  const remainingSeconds = total % 60
   return `${minutes}m ${remainingSeconds}s`
 }
 
