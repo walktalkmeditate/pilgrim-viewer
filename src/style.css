@@ -1,0 +1,27 @@
+:root {
+  --parchment: #F5F0E8;
+  --parchment-secondary: #EDE6D8;
+  --parchment-tertiary: #E4DBC9;
+  --ink: #2C241E;
+  --stone: #8B7355;
+  --moss: #7A8B6F;
+  --rust: #A0634B;
+  --dawn: #C4956A;
+  --fog: #B8AFA2;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Cormorant Garamond', Georgia, serif;
+  --font-ui: 'Lato', 'Helvetica Neue', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--parchment);
+  color: var(--ink);
+  font-family: var(--font-body);
+  margin: 0;
+}
