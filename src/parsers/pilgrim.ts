@@ -43,6 +43,21 @@ function epochToDate(epoch: number | Date): Date {
   return new Date(epoch * 1000)
 }
 
+function convertRouteTimestamps(route: GeoJSONFeatureCollection): GeoJSONFeatureCollection {
+  return {
+    ...route,
+    features: route.features.map((f) => ({
+      ...f,
+      properties: {
+        ...f.properties,
+        timestamps: f.properties.timestamps
+          ? f.properties.timestamps.map((t) => t * 1000)
+          : undefined,
+      },
+    })),
+  }
+}
+
 function mergeOverlappingIntervals(intervals: Interval[]): Interval[] {
   if (intervals.length === 0) return []
 
@@ -256,7 +271,7 @@ export function parsePilgrimWalkJSON(raw: any): Walk {
     startDate,
     endDate,
     stats: parseStats(raw.stats),
-    route: raw.route as GeoJSONFeatureCollection,
+    route: convertRouteTimestamps(raw.route as GeoJSONFeatureCollection),
     voiceRecordings,
     activities,
     pauses,

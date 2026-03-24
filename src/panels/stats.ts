@@ -4,10 +4,12 @@ import { formatDistance, formatDuration, formatElevation, type UnitSystem } from
 const STORAGE_KEY = 'pilgrim-viewer-units'
 
 function resolveInitialUnit(unitPrefs?: { distanceUnit?: string }): UnitSystem {
-  const stored = localStorage.getItem(STORAGE_KEY)
-  if (stored === 'imperial' || stored === 'metric') {
-    return stored
-  }
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored === 'imperial' || stored === 'metric') {
+      return stored
+    }
+  } catch { /* localStorage unavailable */ }
   if (unitPrefs?.distanceUnit === 'mi') {
     return 'imperial'
   }
@@ -146,7 +148,7 @@ export function renderStatsPanel(
   toggleButton.addEventListener('click', () => {
     currentUnit = currentUnit === 'metric' ? 'imperial' : 'metric'
     toggleButton.textContent = currentUnit === 'metric' ? 'km' : 'mi'
-    localStorage.setItem(STORAGE_KEY, currentUnit)
+    try { localStorage.setItem(STORAGE_KEY, currentUnit) } catch { /* unavailable */ }
     updateUnitDependentValues()
   })
 

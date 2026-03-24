@@ -86,6 +86,7 @@ export function renderTimelinePanel(container: HTMLElement, walk: Walk): void {
   if (walk.activities.length === 0) return
 
   const totalDuration = walk.endDate.getTime() - walk.startDate.getTime()
+  if (totalDuration <= 0) return
 
   const panel = document.createElement('div')
   panel.className = 'panel'

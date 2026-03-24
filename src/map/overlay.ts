@@ -67,6 +67,7 @@ export function createOverlayRenderer(
   let statsBar: HTMLElement | null = null
   let walkClickCallback: ((walk: Walk) => void) | null = null
   let currentWalks: Walk[] = []
+  let pendingLoadHandler: (() => void) | null = null
 
   function removeSourcesAndLayers(): void {
     for (const { event, layer, handler } of activeHandlers) {
@@ -199,10 +200,19 @@ export function createOverlayRenderer(
       createStatsBar(walks)
     }
 
+    if (pendingLoadHandler) {
+      map.off('load', pendingLoadHandler)
+      pendingLoadHandler = null
+    }
+
     if (map.isStyleLoaded()) {
       render()
     } else {
-      map.once('load', render)
+      pendingLoadHandler = render
+      map.once('load', () => {
+        pendingLoadHandler = null
+        render()
+      })
     }
   }
 

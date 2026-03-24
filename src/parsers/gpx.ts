@@ -105,13 +105,12 @@ export function parseGPX(xmlString: string): Walk[] {
   for (const track of tracks) {
     const points = extractTrackPoints(track)
 
-    if (points.length === 0) {
-      throw new Error('No trackpoints found in GPX file')
-    }
+    if (points.length === 0) continue
 
     const coordinates: number[][] = []
-    const timestamps: number[] = []
+    const rawTimestamps: number[] = []
     const elevations: number[] = []
+    let allHaveTime = true
 
     for (const pt of points) {
       const lat = Number(pt['@_lat'])
@@ -121,10 +120,13 @@ export function parseGPX(xmlString: string): Walk[] {
       elevations.push(ele)
 
       if (pt.time) {
-        timestamps.push(new Date(pt.time).getTime())
+        rawTimestamps.push(new Date(pt.time).getTime())
+      } else {
+        allHaveTime = false
       }
     }
 
+    const timestamps = allHaveTime ? rawTimestamps : []
     const now = Date.now()
     const startMs = timestamps[0] ?? now
     const endMs = timestamps[timestamps.length - 1] ?? now
@@ -144,6 +146,10 @@ export function parseGPX(xmlString: string): Walk[] {
       pauses: [],
       source: 'gpx',
     })
+  }
+
+  if (walks.length === 0) {
+    throw new Error('No trackpoints found in GPX file')
   }
 
   return walks

@@ -47,8 +47,35 @@ async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to parse file'
     console.error('Parse error:', err)
-    console.error(msg)
+    showError(msg)
   }
+}
+
+function showError(message: string): void {
+  app.textContent = ''
+  const errorZone = document.createElement('div')
+  errorZone.className = 'dropzone'
+
+  const heading = document.createElement('h1')
+  heading.className = 'dropzone-title'
+  heading.textContent = 'Pilgrim Viewer'
+
+  const errorMsg = document.createElement('p')
+  errorMsg.className = 'dropzone-error visible'
+  errorMsg.textContent = message
+
+  const retryBtn = document.createElement('button')
+  retryBtn.className = 'dropzone-button'
+  retryBtn.textContent = 'Try Another File'
+  retryBtn.addEventListener('click', () => {
+    app.textContent = ''
+    createDropZone(app, handleFile)
+  })
+
+  errorZone.appendChild(heading)
+  errorZone.appendChild(errorMsg)
+  errorZone.appendChild(retryBtn)
+  app.appendChild(errorZone)
 }
 
 function renderApp(): void {
@@ -60,7 +87,7 @@ function renderApp(): void {
 
   const source = currentWalks[0].source
   const layout = createLayout(app)
-  layout.showFileLoaded(source, dropzone.openFilePicker)
+  layout.showFileLoaded(source, handleFile)
 
   const mapRenderer = createMapRenderer(layout.mapContainer, token)
   activeMapRenderer = mapRenderer

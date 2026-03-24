@@ -16,7 +16,7 @@ export interface LayoutResult {
   sidebar: HTMLElement
   mapContainer: HTMLElement
   overlayMapContainer: HTMLElement
-  showFileLoaded: (source: 'pilgrim' | 'gpx', openFilePicker: () => void) => void
+  showFileLoaded: (source: 'pilgrim' | 'gpx', onFileSelected: (name: string, buffer: ArrayBuffer) => void) => void
 }
 
 export function createLayout(app: HTMLElement): LayoutResult {
@@ -96,10 +96,28 @@ export function createLayout(app: HTMLElement): LayoutResult {
 
   function showFileLoaded(
     source: 'pilgrim' | 'gpx',
-    openFilePicker: () => void,
+    onFileSelected: (name: string, buffer: ArrayBuffer) => void,
   ): void {
     openButton.classList.add('visible')
-    openButton.addEventListener('click', () => openFilePicker())
+
+    const fileInput = document.createElement('input')
+    fileInput.type = 'file'
+    fileInput.accept = '.pilgrim,.gpx'
+    fileInput.className = 'dropzone-input'
+    header.appendChild(fileInput)
+
+    openButton.addEventListener('click', () => fileInput.click())
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = () => {
+        if (reader.result instanceof ArrayBuffer) {
+          onFileSelected(file.name, reader.result)
+        }
+      }
+      reader.readAsArrayBuffer(file)
+    })
 
     if (source === 'pilgrim') {
       pilgrimBadge.classList.add('visible')

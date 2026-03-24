@@ -29,8 +29,12 @@ function drawSparkline(canvas: HTMLCanvasElement, elevations: number[]): void {
 
   ctx.scale(dpr, dpr)
 
-  const minElev = Math.min(...elevations)
-  const maxElev = Math.max(...elevations)
+  let minElev = Infinity
+  let maxElev = -Infinity
+  for (const e of elevations) {
+    if (e < minElev) minElev = e
+    if (e > maxElev) maxElev = e
+  }
   const range = maxElev - minElev
 
   if (range === 0) {
@@ -100,19 +104,23 @@ export function renderElevationPanel(container: HTMLElement, walk: Walk): void {
 
   drawSparkline(canvas, elevations)
 
-  const minElev = Math.min(...elevations)
-  const maxElev = Math.max(...elevations)
+  let minElevLabel = Infinity
+  let maxElevLabel = -Infinity
+  for (const e of elevations) {
+    if (e < minElevLabel) minElevLabel = e
+    if (e > maxElevLabel) maxElevLabel = e
+  }
 
   const labels = document.createElement('div')
   labels.className = 'elevation-labels'
 
   const minLabel = document.createElement('span')
   minLabel.className = 'elevation-label'
-  minLabel.textContent = formatElevation(minElev)
+  minLabel.textContent = formatElevation(minElevLabel)
 
   const maxLabel = document.createElement('span')
   maxLabel.className = 'elevation-label'
-  maxLabel.textContent = formatElevation(maxElev)
+  maxLabel.textContent = formatElevation(maxElevLabel)
 
   labels.appendChild(minLabel)
   labels.appendChild(maxLabel)
