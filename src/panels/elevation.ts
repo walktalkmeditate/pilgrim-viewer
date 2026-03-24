@@ -1,5 +1,5 @@
 import type { Walk } from '../parsers/types'
-import { formatElevation } from '../parsers/units'
+import { formatElevation, type UnitSystem } from '../parsers/units'
 
 const CANVAS_HEIGHT = 80
 const DEFAULT_CANVAS_WIDTH = 288
@@ -86,7 +86,7 @@ function drawSparkline(canvas: HTMLCanvasElement, elevations: number[]): void {
   ctx.stroke()
 }
 
-export function renderElevationPanel(container: HTMLElement, walk: Walk): void {
+export function renderElevationPanel(container: HTMLElement, walk: Walk, unit: UnitSystem = 'metric'): void {
   const elevations = extractElevations(walk)
   if (elevations.length < 2) return
 
@@ -116,11 +116,11 @@ export function renderElevationPanel(container: HTMLElement, walk: Walk): void {
 
   const minLabel = document.createElement('span')
   minLabel.className = 'elevation-label'
-  minLabel.textContent = formatElevation(minElevLabel)
+  minLabel.textContent = formatElevation(minElevLabel, unit)
 
   const maxLabel = document.createElement('span')
   maxLabel.className = 'elevation-label'
-  maxLabel.textContent = formatElevation(maxElevLabel)
+  maxLabel.textContent = formatElevation(maxElevLabel, unit)
 
   labels.appendChild(minLabel)
   labels.appendChild(maxLabel)

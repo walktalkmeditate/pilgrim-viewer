@@ -1,4 +1,5 @@
 import type { Walk, PilgrimManifest } from '../parsers/types'
+import type { UnitSystem } from '../parsers/units'
 import { renderStatsPanel } from '../panels/stats'
 import { renderElevationPanel } from '../panels/elevation'
 import { renderTimelinePanel } from '../panels/timeline'
@@ -17,6 +18,7 @@ export interface LayoutResult {
   sidebar: HTMLElement
   mapContainer: HTMLElement
   overlayMapContainer: HTMLElement
+  headerControls: HTMLElement
   showFileLoaded: (source: 'pilgrim' | 'gpx', onFileSelected: (name: string, buffer: ArrayBuffer) => void) => void
 }
 
@@ -37,8 +39,16 @@ export function createLayout(app: HTMLElement, onHomeClick?: () => void): Layout
   openButton.className = 'header-button'
   openButton.textContent = 'Open another file'
 
+  const headerControls = document.createElement('div')
+  headerControls.className = 'header-controls'
+  headerControls.style.display = 'flex'
+  headerControls.style.alignItems = 'center'
+  headerControls.style.gap = '0.5rem'
+  headerControls.style.marginLeft = 'auto'
+
   header.appendChild(title)
   header.appendChild(openButton)
+  header.appendChild(headerControls)
 
   const layout = document.createElement('div')
   layout.className = 'app-layout'
@@ -127,7 +137,7 @@ export function createLayout(app: HTMLElement, onHomeClick?: () => void): Layout
     }
   }
 
-  return { sidebar: panelsContainer, mapContainer, overlayMapContainer, showFileLoaded }
+  return { sidebar: panelsContainer, mapContainer, overlayMapContainer, headerControls, showFileLoaded }
 }
 
 function makeCollapsible(panel: HTMLElement): void {
@@ -165,6 +175,7 @@ export function renderPanels(
   sidebar: HTMLElement,
   walk: Walk,
   manifest?: PilgrimManifest,
+  unit?: UnitSystem,
 ): void {
   let panelsContent = sidebar.querySelector<HTMLElement>('.panels-content')
   if (!panelsContent) {
@@ -175,8 +186,8 @@ export function renderPanels(
 
   panelsContent.textContent = ''
 
-  renderStatsPanel(panelsContent, walk, manifest?.preferences)
-  renderElevationPanel(panelsContent, walk)
+  renderStatsPanel(panelsContent, walk, unit)
+  renderElevationPanel(panelsContent, walk, unit)
   renderTimelinePanel(panelsContent, walk)
   renderIntentionPanel(panelsContent, walk)
   renderWeatherPanel(panelsContent, walk)
@@ -238,6 +249,7 @@ export function renderOverlaySidebar(
     selectedWalk?: Walk
     manifest?: PilgrimManifest
     colorMode?: ColorMode
+    unit?: UnitSystem
   } = {},
 ): void {
   let panelsContent = sidebar.querySelector<HTMLElement>('.panels-content')
@@ -264,13 +276,14 @@ export function renderOverlaySidebar(
   const statsGrid = document.createElement('div')
   statsGrid.className = 'overlay-stats-grid'
 
+  const unit = options.unit
   const statEntries: Array<{ value: string; label: string }> = [
     { value: `${walks.length} ${walks.length === 1 ? 'walk' : 'walks'}`, label: 'count' },
-    { value: formatDistance(totalDist), label: 'total distance' },
+    { value: formatDistance(totalDist, unit), label: 'total distance' },
     { value: formatDuration(totalDuration), label: 'total time' },
     { value: dateRange, label: 'date range' },
-    { value: formatDistance(avgDist), label: 'avg per walk' },
-    { value: formatDistance(longestWalk), label: 'longest walk' },
+    { value: formatDistance(avgDist, unit), label: 'avg per walk' },
+    { value: formatDistance(longestWalk, unit), label: 'longest walk' },
   ]
 
   for (const entry of statEntries) {
@@ -346,7 +359,7 @@ export function renderOverlaySidebar(
 
     const dist = document.createElement('span')
     dist.className = 'overlay-timeline-dist'
-    dist.textContent = formatDistance(walk.stats.distance)
+    dist.textContent = formatDistance(walk.stats.distance, unit)
 
     row.appendChild(dot)
     row.appendChild(date)
@@ -386,8 +399,8 @@ export function renderOverlaySidebar(
       panelsContent.appendChild(backBtn)
     }
 
-    renderStatsPanel(panelsContent, options.selectedWalk, options.manifest?.preferences)
-    renderElevationPanel(panelsContent, options.selectedWalk)
+    renderStatsPanel(panelsContent, options.selectedWalk, unit)
+    renderElevationPanel(panelsContent, options.selectedWalk, unit)
     renderTimelinePanel(panelsContent, options.selectedWalk)
     renderIntentionPanel(panelsContent, options.selectedWalk)
     renderWeatherPanel(panelsContent, options.selectedWalk)

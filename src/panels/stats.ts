@@ -1,21 +1,6 @@
 import type { Walk } from '../parsers/types'
 import { formatDistance, formatDuration, formatElevation, type UnitSystem } from '../parsers/units'
 
-const STORAGE_KEY = 'pilgrim-viewer-units'
-
-function resolveInitialUnit(unitPrefs?: { distanceUnit?: string }): UnitSystem {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored === 'imperial' || stored === 'metric') {
-      return stored
-    }
-  } catch { /* localStorage unavailable */ }
-  if (unitPrefs?.distanceUnit === 'mi') {
-    return 'imperial'
-  }
-  return 'metric'
-}
-
 function createStatRow(label: string): { row: HTMLElement; valueEl: HTMLElement } {
   const row = document.createElement('div')
   row.className = 'stat-row'
@@ -97,7 +82,7 @@ function createBreakdownBar(
 export function renderStatsPanel(
   container: HTMLElement,
   walk: Walk,
-  unitPrefs?: { distanceUnit?: string },
+  unit: UnitSystem = 'metric',
 ): void {
   const panel = document.createElement('div')
   panel.className = 'panel'
@@ -107,59 +92,31 @@ export function renderStatsPanel(
   heading.textContent = 'Stats'
   panel.appendChild(heading)
 
-  let currentUnit = resolveInitialUnit(unitPrefs)
-
   const { stats } = walk
 
   const distanceRow = createStatRow('Distance')
   const durationRow = createStatRow('Duration')
   const elevationRow = createStatRow('Elevation')
 
+  distanceRow.valueEl.textContent = formatDistance(stats.distance, unit)
   durationRow.valueEl.textContent = formatDuration(stats.activeDuration)
-
-  const optionalRows: Array<{ row: HTMLElement; valueEl: HTMLElement }> = []
-
-  let stepsRow: { row: HTMLElement; valueEl: HTMLElement } | null = null
-  if (stats.steps != null) {
-    stepsRow = createStatRow('Steps')
-    stepsRow.valueEl.textContent = stats.steps.toLocaleString()
-    optionalRows.push(stepsRow)
-  }
-
-  let energyRow: { row: HTMLElement; valueEl: HTMLElement } | null = null
-  if (stats.burnedEnergy != null) {
-    energyRow = createStatRow('Energy')
-    energyRow.valueEl.textContent = `${Math.round(stats.burnedEnergy)} kcal`
-    optionalRows.push(energyRow)
-  }
-
-  function updateUnitDependentValues(): void {
-    distanceRow.valueEl.textContent = formatDistance(stats.distance, currentUnit)
-    elevationRow.valueEl.textContent =
-      `↑ ${formatElevation(stats.ascent, currentUnit)}  ↓ ${formatElevation(stats.descent, currentUnit)}`
-  }
-
-  updateUnitDependentValues()
-
-  const toggleButton = document.createElement('button')
-  toggleButton.className = 'unit-toggle'
-  toggleButton.textContent = currentUnit === 'metric' ? 'km' : 'mi'
-
-  toggleButton.addEventListener('click', () => {
-    currentUnit = currentUnit === 'metric' ? 'imperial' : 'metric'
-    toggleButton.textContent = currentUnit === 'metric' ? 'km' : 'mi'
-    try { localStorage.setItem(STORAGE_KEY, currentUnit) } catch { /* unavailable */ }
-    updateUnitDependentValues()
-  })
-
-  distanceRow.valueEl.appendChild(toggleButton)
+  elevationRow.valueEl.textContent =
+    `↑ ${formatElevation(stats.ascent, unit)}  ↓ ${formatElevation(stats.descent, unit)}`
 
   panel.appendChild(distanceRow.row)
   panel.appendChild(durationRow.row)
   panel.appendChild(elevationRow.row)
 
-  for (const { row } of optionalRows) {
-    panel.appendChild(row)
+  if (stats.steps != null) {
+    const stepsRow = createStatRow('Steps')
+    stepsRow.valueEl.textContent = stats.steps.toLocaleString()
+    panel.appendChild(stepsRow.row)
+  }
+
+  if (stats.burnedEnergy != null) {
+    const energyRow = createStatRow('Energy')
+    energyRow.valueEl.textContent = `${Math.round(stats.burnedEnergy)} kcal`
+    panel.appendChild(energyRow.row)
   }
 
   const hasPilgrimData = stats.talkDuration > 0 || stats.meditateDuration > 0

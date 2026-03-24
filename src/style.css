@@ -13,6 +13,18 @@
   --font-ui: 'Lato', 'Helvetica Neue', sans-serif;
 }
 
+[data-theme="dark"] {
+  --parchment: #1C1914;
+  --parchment-secondary: #262118;
+  --parchment-tertiary: #30291F;
+  --ink: #F0EBE1;
+  --stone: #B8976E;
+  --moss: #95A895;
+  --rust: #C47E63;
+  --dawn: #D4A87A;
+  --fog: #6B6359;
+}
+
 *,
 *::before,
 *::after {
@@ -24,6 +36,7 @@ body {
   color: var(--ink);
   font-family: var(--font-body);
   margin: 0;
+  transition: color 0.3s ease, background-color 0.3s ease;
 }
 
 /* Drop Zone */
@@ -168,11 +181,13 @@ body {
 .app-header {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
   padding: 0.5rem 1rem;
   background: var(--parchment);
   border-bottom: 1px solid var(--parchment-tertiary);
   height: 48px;
   flex-shrink: 0;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .app-title {
@@ -202,7 +217,6 @@ body {
   border-radius: 4px;
   padding: 0.25rem 0.75rem;
   cursor: pointer;
-  margin-left: auto;
   display: none;
 }
 
@@ -329,19 +343,40 @@ body {
 }
 
 .unit-toggle {
+  display: inline-flex;
+  background: var(--parchment-tertiary);
+  border-radius: 10px;
+  padding: 2px;
   font-family: var(--font-ui);
   font-size: 0.6875rem;
-  color: var(--fog);
-  background: var(--parchment-tertiary);
-  border: none;
-  border-radius: 10px;
-  padding: 0.125rem 0.5rem;
-  cursor: pointer;
-  margin-left: 0.5rem;
 }
 
-.unit-toggle:hover {
-  color: var(--stone);
+.unit-toggle-option {
+  padding: 0.125rem 0.5rem;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--fog);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.unit-toggle-option.active {
+  background: var(--parchment);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.moon-toggle {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.moon-toggle:hover {
+  opacity: 1;
 }
 
 /* Breakdown Bar */

@@ -1,3 +1,7 @@
+import { initTheme, createMoonToggle } from './ui/moon-toggle'
+
+initTheme()
+
 import './style.css'
 import { createDropZone } from './ui/dropzone'
 import { parsePilgrim } from './parsers/pilgrim'
@@ -11,6 +15,8 @@ import type { ModeToggleResult } from './ui/layout'
 import type { ColorMode } from './map/overlay'
 import { exportWithStats, exportClean, generateFilename } from './map/export'
 import { createWalkList } from './ui/walk-list'
+import { createUnitToggle, resolveInitialUnit } from './ui/unit-toggle'
+import type { UnitSystem } from './parsers/units'
 import type { Walk, PilgrimManifest } from './parsers/types'
 
 const app = document.getElementById('app')!
@@ -19,6 +25,7 @@ let currentWalks: Walk[] = []
 let currentManifest: PilgrimManifest | undefined
 let activeMapRenderer: ReturnType<typeof createMapRenderer> | null = null
 let activeOverlayRenderer: ReturnType<typeof createOverlayRenderer> | null = null
+let currentUnit: UnitSystem = resolveInitialUnit()
 
 createDropZone(app, handleFile)
 
@@ -46,6 +53,8 @@ async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
     if (currentWalks.length === 0) {
       throw new Error('No walks found in file')
     }
+
+    currentUnit = resolveInitialUnit(currentManifest?.preferences)
 
     const token = getMapboxToken()
     if (!token) {
@@ -100,23 +109,35 @@ function renderApp(): void {
   const layout = createLayout(app, goHome)
   layout.showFileLoaded(source, handleFile)
 
+  createUnitToggle(layout.headerControls, currentUnit, (unit) => {
+    currentUnit = unit
+    rerender()
+  })
+  createMoonToggle(layout.headerControls)
+
   const mapRenderer = createMapRenderer(layout.mapContainer, token)
   activeMapRenderer = mapRenderer
 
+  let rerender: () => void
+
   if (currentWalks.length > 1) {
-    renderMultiWalk(layout, mapRenderer, token)
+    rerender = renderMultiWalk(layout, mapRenderer, token)
   } else {
     const walk = currentWalks[0]
     mapRenderer.showWalk(walk)
-    renderPanels(layout.sidebar, walk, currentManifest)
+    renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
+
+    rerender = () => {
+      renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
+    }
   }
 }
 
 function renderMultiWalk(
-  layout: { sidebar: HTMLElement; mapContainer: HTMLElement; overlayMapContainer: HTMLElement },
+  layout: { sidebar: HTMLElement; mapContainer: HTMLElement; overlayMapContainer: HTMLElement; headerControls: HTMLElement },
   mapRenderer: ReturnType<typeof createMapRenderer>,
   token: string,
-): void {
+): () => void {
   let mode: 'list' | 'overlay' = 'list'
   let selectedWalk: Walk | null = null
   let overlayRenderer: OverlayRenderer | null = null
@@ -136,7 +157,7 @@ function renderMultiWalk(
     walkList = createWalkList(layout.sidebar, currentWalks, (walk) => {
       selectedWalk = walk
       mapRenderer.showWalk(walk)
-      renderPanels(layout.sidebar, walk, currentManifest)
+      renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
     })
 
     const selectIdx = selectedWalk ? currentWalks.indexOf(selectedWalk) : 0
@@ -174,6 +195,7 @@ function renderMultiWalk(
       selectedWalk: walk ?? undefined,
       manifest: currentManifest,
       colorMode,
+      unit: currentUnit,
       onWalkClick: (w) => {
         handleOverlayWalkClick(w)
       },
@@ -251,4 +273,12 @@ function renderMultiWalk(
   }
 
   showListMode()
+
+  return () => {
+    if (mode === 'list') {
+      showListMode()
+    } else {
+      renderOverlaySidebarContent(selectedWalk)
+    }
+  }
 }
