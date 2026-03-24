@@ -8,6 +8,7 @@ import { renderTranscriptionsPanel } from '../panels/transcriptions'
 import { renderCelestialPanel } from '../panels/celestial'
 import { formatDistance } from '../parsers/units'
 import { getSeasonColor } from '../map/overlay'
+import type { ColorMode } from '../map/overlay'
 
 const GITHUB_URL = 'https://github.com/walktalkmeditate/pilgrim-viewer'
 const PILGRIM_URL = 'https://pilgrimapp.org'
@@ -341,4 +342,127 @@ export function renderOverlaySidebar(
       panelsContent.appendChild(clearBtn)
     }
   }
+}
+
+export function renderColorSwitcher(
+  container: HTMLElement,
+  onChange: (mode: ColorMode) => void,
+): { setMode: (mode: ColorMode) => void } {
+  const wrapper = document.createElement('div')
+  wrapper.className = 'color-switcher'
+
+  const label = document.createElement('span')
+  label.className = 'color-switcher-label'
+  label.textContent = 'Color by'
+
+  const seasonBtn = document.createElement('button')
+  seasonBtn.className = 'color-switcher-option active'
+  seasonBtn.textContent = 'Season'
+
+  const timeBtn = document.createElement('button')
+  timeBtn.className = 'color-switcher-option'
+  timeBtn.textContent = 'Time of Day'
+
+  function setMode(mode: ColorMode): void {
+    seasonBtn.classList.toggle('active', mode === 'season')
+    timeBtn.classList.toggle('active', mode === 'timeOfDay')
+  }
+
+  seasonBtn.addEventListener('click', () => { setMode('season'); onChange('season') })
+  timeBtn.addEventListener('click', () => { setMode('timeOfDay'); onChange('timeOfDay') })
+
+  wrapper.appendChild(label)
+  wrapper.appendChild(seasonBtn)
+  wrapper.appendChild(timeBtn)
+  container.appendChild(wrapper)
+
+  return { setMode }
+}
+
+export function renderExportButtons(
+  container: HTMLElement,
+  onExportStats: () => void,
+  onExportClean: () => void,
+): void {
+  const wrapper = document.createElement('div')
+  wrapper.className = 'export-buttons'
+
+  const statsBtn = document.createElement('button')
+  statsBtn.className = 'export-button'
+  statsBtn.textContent = 'Export with stats'
+  statsBtn.addEventListener('click', onExportStats)
+
+  const cleanBtn = document.createElement('button')
+  cleanBtn.className = 'export-button'
+  cleanBtn.textContent = 'Export clean'
+  cleanBtn.addEventListener('click', onExportClean)
+
+  wrapper.appendChild(statsBtn)
+  wrapper.appendChild(cleanBtn)
+  container.appendChild(wrapper)
+}
+
+export function renderYearPicker(
+  container: HTMLElement,
+  walks: Walk[],
+  onYearSelect: (year: number | null) => void,
+): { setYear: (year: number | null) => void } {
+  const years = [...new Set(walks.map((w) => w.startDate.getFullYear()))].sort()
+
+  if (years.length <= 1) {
+    if (years.length === 1) {
+      const label = document.createElement('div')
+      label.className = 'year-label'
+      label.textContent = String(years[0])
+      container.appendChild(label)
+    }
+    return { setYear: () => {} }
+  }
+
+  const wrapper = document.createElement('div')
+  wrapper.className = 'year-picker'
+
+  const heading = document.createElement('div')
+  heading.className = 'year-picker-heading'
+  heading.textContent = 'Year in Review'
+  wrapper.appendChild(heading)
+
+  const buttons: HTMLButtonElement[] = []
+  let activeYear: number | null = null
+
+  for (const year of years) {
+    const btn = document.createElement('button')
+    btn.className = 'year-picker-btn'
+    btn.textContent = String(year)
+    btn.addEventListener('click', () => {
+      const newYear = year === activeYear ? null : year
+      setYear(newYear)
+      onYearSelect(newYear)
+    })
+    wrapper.appendChild(btn)
+    buttons.push(btn)
+  }
+
+  const showAllBtn = document.createElement('button')
+  showAllBtn.className = 'year-picker-btn year-picker-show-all'
+  showAllBtn.textContent = 'Show all'
+  showAllBtn.addEventListener('click', () => {
+    setYear(null)
+    onYearSelect(null)
+  })
+  wrapper.appendChild(showAllBtn)
+
+  container.appendChild(wrapper)
+
+  function setYear(year: number | null): void {
+    activeYear = year
+    for (const btn of buttons) {
+      btn.classList.toggle('active', btn.textContent === String(year))
+    }
+    showAllBtn.classList.toggle('active', year === null)
+  }
+
+  setYear(null)
+
+  return { setYear }
 }
