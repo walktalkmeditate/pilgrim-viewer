@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Pilgrim Viewer Tests" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Camino Test</name>
+    <trkseg>
+      <trkpt lat="42.8872" lon="-8.5108"><ele>370</ele><time>2026-03-20T07:00:00Z</time></trkpt>
+      <trkpt lat="42.8850" lon="-8.5160"><ele>350</ele><time>2026-03-20T07:03:00Z</time></trkpt>
+      <trkpt lat="42.8828" lon="-8.5212"><ele>315</ele><time>2026-03-20T07:06:00Z</time></trkpt>
+      <trkpt lat="42.8805" lon="-8.5265"><ele>278</ele><time>2026-03-20T07:09:00Z</time></trkpt>
+      <trkpt lat="42.8782" lon="-8.5318"><ele>255</ele><time>2026-03-20T07:12:00Z</time></trkpt>
+      <trkpt lat="42.8760" lon="-8.5368"><ele>265</ele><time>2026-03-20T07:15:00Z</time></trkpt>
+      <trkpt lat="42.8740" lon="-8.5400"><ele>242</ele><time>2026-03-20T07:18:00Z</time></trkpt>
+      <trkpt lat="42.8720" lon="-8.5430"><ele>240</ele><time>2026-03-20T07:21:00Z</time></trkpt>
+      <trkpt lat="42.8700" lon="-8.5460"><ele>238</ele><time>2026-03-20T07:24:00Z</time></trkpt>
+      <trkpt lat="42.8680" lon="-8.5490"><ele>235</ele><time>2026-03-20T07:27:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
