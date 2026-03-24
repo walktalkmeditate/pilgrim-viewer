@@ -6,8 +6,10 @@ import { createMapRenderer } from './map/renderer'
 import { createOverlayRenderer } from './map/overlay'
 import type { OverlayRenderer } from './map/overlay'
 import { getMapboxToken, renderTokenPrompt } from './map/token'
-import { createLayout, renderPanels, renderModeToggle, renderOverlaySidebar } from './ui/layout'
+import { createLayout, renderPanels, renderModeToggle, renderOverlaySidebar, renderColorSwitcher, renderExportButtons, renderYearPicker } from './ui/layout'
 import type { ModeToggleResult } from './ui/layout'
+import type { ColorMode } from './map/overlay'
+import { exportWithStats, exportClean, generateFilename } from './map/export'
 import { createWalkList } from './ui/walk-list'
 import type { Walk, PilgrimManifest } from './parsers/types'
 
@@ -120,6 +122,8 @@ function renderMultiWalk(
   let overlayRenderer: OverlayRenderer | null = null
   let walkList: { select: (index: number) => void } | null = null
   let modeToggle: ModeToggleResult | null = null
+  let colorMode: ColorMode = 'season'
+  let selectedYear: number | null = null
 
   function showListMode(): void {
     layout.mapContainer.style.display = ''
@@ -149,7 +153,10 @@ function renderMultiWalk(
       overlayRenderer.onWalkClick(handleOverlayWalkClick)
     }
 
-    overlayRenderer.showAllWalks(currentWalks)
+    const filtered = selectedYear
+      ? currentWalks.filter((w) => w.startDate.getFullYear() === selectedYear)
+      : currentWalks
+    overlayRenderer.showAllWalks(filtered)
     renderOverlaySidebarContent(null)
   }
 
@@ -159,7 +166,11 @@ function renderMultiWalk(
     modeToggle = renderModeToggle(layout.sidebar, handleModeToggle)
     modeToggle.setMode('overlay')
 
-    renderOverlaySidebar(layout.sidebar, currentWalks, {
+    const walksForSidebar = selectedYear
+      ? currentWalks.filter((w) => w.startDate.getFullYear() === selectedYear)
+      : currentWalks
+
+    renderOverlaySidebar(layout.sidebar, walksForSidebar, {
       selectedWalk: walk ?? undefined,
       manifest: currentManifest,
       onBackToList: walk
@@ -177,6 +188,46 @@ function renderMultiWalk(
           }
         : undefined,
     })
+
+    const panelsContent = layout.sidebar.querySelector<HTMLElement>('.panels-content')
+    if (panelsContent) {
+      const colorSwitcher = renderColorSwitcher(panelsContent, (mode) => {
+        colorMode = mode
+        if (overlayRenderer) overlayRenderer.setColorMode(mode)
+      })
+      colorSwitcher.setMode(colorMode)
+
+      const firstChild = panelsContent.firstChild
+      const switcherEl = panelsContent.lastElementChild
+      if (firstChild && switcherEl) {
+        panelsContent.insertBefore(switcherEl, firstChild)
+      }
+
+      renderExportButtons(panelsContent,
+        () => {
+          if (!overlayRenderer) return
+          const text = overlayRenderer.getStatsText()
+          const filename = generateFilename('stats', selectedYear)
+          exportWithStats(overlayRenderer.getMap().getCanvas(), text, filename)
+        },
+        () => {
+          if (!overlayRenderer) return
+          const filename = generateFilename('clean', selectedYear)
+          exportClean(overlayRenderer.getMap().getCanvas(), layout.overlayMapContainer, filename)
+        },
+      )
+
+      renderYearPicker(panelsContent, currentWalks, (year) => {
+        selectedYear = year
+        if (!overlayRenderer) return
+        overlayRenderer.setSelectedYear(year)
+        const filtered = year
+          ? currentWalks.filter((w) => w.startDate.getFullYear() === year)
+          : currentWalks
+        overlayRenderer.showAllWalks(filtered)
+        renderOverlaySidebarContent(null)
+      })
+    }
   }
 
   function handleOverlayWalkClick(walk: Walk): void {
