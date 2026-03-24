@@ -25,3 +25,68 @@ body {
   font-family: var(--font-body);
   margin: 0;
 }
+
+/* Drop Zone */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  border: 2px dashed var(--fog);
+  transition: border-color 0.2s;
+}
+
+.dropzone.drag-active {
+  border-color: var(--stone);
+}
+
+.dropzone-title {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 300;
+  color: var(--ink);
+  margin: 0 0 0.5rem;
+}
+
+.dropzone-subtitle {
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  color: var(--fog);
+  margin: 0 0 2rem;
+}
+
+.dropzone-button {
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--stone);
+  background: transparent;
+  border: 1px solid var(--stone);
+  border-radius: 4px;
+  padding: 0.5rem 1.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.dropzone-button:hover {
+  background: var(--stone);
+  color: var(--parchment);
+}
+
+.dropzone-error {
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  color: var(--rust);
+  margin-top: 1rem;
+  display: none;
+}
+
+.dropzone-error.visible {
+  display: block;
+}
+
+.dropzone-input {
+  display: none;
+}
