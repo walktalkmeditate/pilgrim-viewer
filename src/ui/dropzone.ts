@@ -91,11 +91,16 @@ export function createDropZone(
     samples.appendChild(row)
   }
 
+  const privacy = document.createElement('p')
+  privacy.className = 'dropzone-privacy'
+  privacy.textContent = 'Your data stays on your device. Nothing is uploaded.'
+
   wrapper.appendChild(title)
   wrapper.appendChild(subtitle)
   wrapper.appendChild(button)
   wrapper.appendChild(input)
   wrapper.appendChild(samples)
+  wrapper.appendChild(privacy)
   wrapper.appendChild(errorMsg)
   container.appendChild(wrapper)
 

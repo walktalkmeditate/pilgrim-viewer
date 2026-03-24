@@ -52,21 +52,18 @@ export function createLayout(app: HTMLElement, onHomeClick?: () => void): Layout
   const footer = document.createElement('footer')
   footer.className = 'app-footer'
 
+  const privacyText = document.createElement('p')
+  privacyText.className = 'app-footer-privacy'
+  privacyText.textContent = 'Your data stays on your device'
+
   const footerText = document.createElement('p')
   footerText.className = 'app-footer-text'
   footerText.textContent = 'Open source · '
 
-  const footerLicense = document.createElement('a')
-  footerLicense.href = GITHUB_URL
-  footerLicense.textContent = 'MIT License'
-  footerText.appendChild(footerLicense)
-
-  footerText.appendChild(document.createTextNode(' · '))
-
-  const footerGithub = document.createElement('a')
-  footerGithub.href = GITHUB_URL
-  footerGithub.textContent = 'GitHub'
-  footerText.appendChild(footerGithub)
+  const footerLink = document.createElement('a')
+  footerLink.href = GITHUB_URL
+  footerLink.textContent = 'MIT License'
+  footerText.appendChild(footerLink)
 
   const pilgrimBadge = document.createElement('div')
   pilgrimBadge.className = 'pilgrim-badge'
@@ -79,6 +76,7 @@ export function createLayout(app: HTMLElement, onHomeClick?: () => void): Layout
   pilgrimBadge.appendChild(badgeText)
   pilgrimBadge.appendChild(badgeLink)
 
+  footer.appendChild(privacyText)
   footer.appendChild(footerText)
   footer.appendChild(pilgrimBadge)
 
