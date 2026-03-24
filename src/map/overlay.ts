@@ -32,6 +32,53 @@ function getSeasonName(date: Date): string {
   return 'winter'
 }
 
+export type ColorMode = 'season' | 'timeOfDay'
+
+const TIME_COLORS = {
+  dawn: '#C4956A',
+  midday: '#E8E0D4',
+  dusk: '#D4874D',
+  night: '#6B8EAE',
+}
+
+const TIME_LABELS: Record<string, string> = {
+  dawn: 'mornings',
+  midday: 'middays',
+  dusk: 'evenings',
+  night: 'nights',
+}
+
+export function getTimeOfDayColor(date: Date): string {
+  const hour = date.getHours()
+  if (hour >= 5 && hour < 10) return TIME_COLORS.dawn
+  if (hour >= 10 && hour < 16) return TIME_COLORS.midday
+  if (hour >= 16 && hour < 20) return TIME_COLORS.dusk
+  return TIME_COLORS.night
+}
+
+function getTimeBucket(date: Date): string {
+  const hour = date.getHours()
+  if (hour >= 5 && hour < 10) return 'dawn'
+  if (hour >= 10 && hour < 16) return 'midday'
+  if (hour >= 16 && hour < 20) return 'dusk'
+  return 'night'
+}
+
+export function getWalkColor(walk: Walk, mode: ColorMode): string {
+  return mode === 'timeOfDay' ? getTimeOfDayColor(walk.startDate) : getSeasonColor(walk.startDate)
+}
+
+export function getDominantTimeBucket(walks: Walk[]): string {
+  const counts: Record<string, number> = { dawn: 0, midday: 0, dusk: 0, night: 0 }
+  for (const walk of walks) counts[getTimeBucket(walk.startDate)]++
+  const order = ['dawn', 'midday', 'dusk', 'night']
+  let best = order[0]
+  for (const bucket of order) {
+    if (counts[bucket] > counts[best]) best = bucket
+  }
+  return `mostly ${TIME_LABELS[best]}`
+}
+
 function sourceId(index: number): string {
   return `overlay-source-${index}`
 }
