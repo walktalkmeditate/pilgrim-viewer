@@ -254,9 +254,15 @@ function renderMultiWalk(
   }
 
   function handleOverlayWalkClick(walk: Walk): void {
-    selectedWalk = walk
-    if (overlayRenderer) overlayRenderer.highlightWalk(walk)
-    renderOverlaySidebarContent(walk)
+    if (selectedWalk === walk) {
+      selectedWalk = null
+      if (overlayRenderer) overlayRenderer.clearSelection()
+      renderOverlaySidebarContent(null)
+    } else {
+      selectedWalk = walk
+      if (overlayRenderer) overlayRenderer.highlightWalk(walk)
+      renderOverlaySidebarContent(walk)
+    }
   }
 
   function handleModeToggle(newMode: 'list' | 'overlay'): void {
