@@ -199,3 +199,23 @@ body {
   border-radius: 50%;
   display: inline-block;
 }
+
+/* Elevation */
+.elevation-canvas {
+  width: 100%;
+  height: 80px;
+  display: block;
+  border-radius: 4px;
+}
+
+.elevation-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+}
+
+.elevation-label {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+}
