@@ -219,3 +219,45 @@ body {
   font-size: 0.6875rem;
   color: var(--fog);
 }
+
+/* Timeline */
+.timeline-bar {
+  position: relative;
+  height: 24px;
+  background: var(--parchment-tertiary);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.timeline-segment {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+
+.timeline-times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+}
+
+.timeline-time {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+}
+
+.timeline-legend {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.timeline-legend-item {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
