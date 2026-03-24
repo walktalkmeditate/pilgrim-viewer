@@ -58,7 +58,7 @@ export function createDropZone(
   const wrapper = document.createElement('div')
   wrapper.className = 'dropzone'
 
-  const animation = createRouteAnimation(wrapper)
+  let animation: { stop: () => void } | null = null
 
   const title = document.createElement('h1')
   title.className = 'dropzone-title'
@@ -97,7 +97,7 @@ export function createDropZone(
   ]
 
   function stopAnimations(): void {
-    animation.stop()
+    if (animation) animation.stop()
     quoteRotator.stop()
   }
 
@@ -152,6 +152,8 @@ export function createDropZone(
 
   wrapper.appendChild(errorMsg)
   container.appendChild(wrapper)
+
+  animation = createRouteAnimation(wrapper)
 
   function showError(): void {
     errorMsg.classList.add('visible')
