@@ -4,6 +4,20 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-03-24
+
+### Added
+- Redesigned home page with walking staff mark, italic title, tighter layout
+- GitHub Octocat icon on home page linking to repo
+- Styled token prompt page (was unstyled browser defaults)
+- README with architecture, dev setup, features, and JS bridge API
+
+### Changed
+- Deploy only on release publish (not every push to main)
+- Upgraded Node.js from 20 to 22 in CI/deploy workflows
+- Subtitle: "See your walks. Your data stays with you."
+- Rounded pill-style buttons matching wabi-sabi aesthetic
+
 ## [1.0.0] - 2026-03-24
 
 ### Added
