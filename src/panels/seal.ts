@@ -218,8 +218,12 @@ function generateElevationRing(
   if (routePoints.length < 10) return ''
 
   const alts = routePoints.map(p => p.alt)
-  const minAlt = Math.min(...alts)
-  const maxAlt = Math.max(...alts)
+  let minAlt = Infinity
+  let maxAlt = -Infinity
+  for (const a of alts) {
+    if (a < minAlt) minAlt = a
+    if (a > maxAlt) maxAlt = a
+  }
   const altRange = Math.max(maxAlt - minAlt, 1)
   const maxOffset = size * 0.03
 
@@ -316,6 +320,8 @@ export async function renderSealPanel(
   walk: Walk,
   unit: UnitSystem = 'metric',
 ): Promise<void> {
+  if (typeof crypto === 'undefined' || !crypto.subtle) return
+
   const routePoints = extractRoutePoints(walk)
   if (routePoints.length === 0) return
 
@@ -338,11 +344,12 @@ export async function generateCombinedSealSVG(
   size: number,
   unit: UnitSystem = 'metric',
 ): Promise<string | null> {
+  if (typeof crypto === 'undefined' || !crypto.subtle) return null
   if (walks.length === 0) return null
 
   const allRoutePoints: RoutePoint[] = []
   for (const walk of walks) {
-    allRoutePoints.push(...extractRoutePoints(walk))
+    for (const p of extractRoutePoints(walk)) allRoutePoints.push(p)
   }
   if (allRoutePoints.length === 0) return null
 

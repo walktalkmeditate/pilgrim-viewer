@@ -106,6 +106,17 @@ export function createOverlayRenderer(
     zoom: 1,
   })
 
+  map.on('error', (e) => {
+    const status = (e.error as Error & { status?: number }).status
+    if (status === 401 || status === 403) {
+      const msg = document.createElement('div')
+      msg.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-ui);font-size:0.875rem;color:var(--fog);text-align:center;'
+      msg.textContent = 'Map failed to load. Check your Mapbox token.'
+      container.style.position = 'relative'
+      container.appendChild(msg)
+    }
+  })
+
   const activeSourceIds: string[] = []
   const activeLayerIds: string[] = []
   const activeHandlers: Array<{ event: string; layer: string; handler: () => void }> = []
@@ -203,7 +214,7 @@ export function createOverlayRenderer(
   function fitToAllWalks(walks: Walk[]): void {
     const allCoords: number[][] = []
     for (const walk of walks) {
-      allCoords.push(...getAllCoords(walk))
+      for (const c of getAllCoords(walk)) allCoords.push(c)
     }
     if (allCoords.length === 0) return
 

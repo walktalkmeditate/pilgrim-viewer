@@ -147,12 +147,15 @@ function renderApp(): void {
   const token = getMapboxToken()
   if (!token || currentWalks.length === 0) return
 
+  if (activeDropZone) { activeDropZone.stop(); activeDropZone = null }
   if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
   if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
 
   const source = currentWalks[0].source
   const layout = createLayout(app, goHome)
   layout.showFileLoaded(source, handleFile)
+
+  let rerender: () => void = () => {}
 
   createUnitToggle(layout.headerControls, currentUnit, (unit) => {
     currentUnit = unit
@@ -162,8 +165,6 @@ function renderApp(): void {
 
   const mapRenderer = createMapRenderer(layout.mapContainer, token)
   activeMapRenderer = mapRenderer
-
-  let rerender: () => void
 
   if (currentWalks.length > 1) {
     rerender = renderMultiWalk(layout, mapRenderer, token)

@@ -153,7 +153,7 @@ export function exportClean(
     restoreRoutes(map, saved)
 
     if (walks.length > 0) {
-      compositeSeal(ctx, canvas.width, canvas.height, walks, unit, dpr).then(() => {
+      compositeSeal(ctx, canvas.width, canvas.height, walks, unit, dpr).finally(() => {
         triggerDownload(canvas.toDataURL('image/png'), filename)
       })
     } else {

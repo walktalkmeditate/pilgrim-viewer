@@ -190,14 +190,17 @@ export function createDropZone(
     }
   })
 
+  const controller = new AbortController()
+  const signal = controller.signal
+
   container.addEventListener('dragover', (e) => {
     e.preventDefault()
     wrapper.classList.add('drag-active')
-  })
+  }, { signal })
 
   container.addEventListener('dragleave', () => {
     wrapper.classList.remove('drag-active')
-  })
+  }, { signal })
 
   container.addEventListener('drop', (e) => {
     e.preventDefault()
@@ -206,10 +209,13 @@ export function createDropZone(
     if (file) {
       void processFile(file)
     }
-  })
+  }, { signal })
 
   return {
     openFilePicker: () => input.click(),
-    stop: () => stopAnimations(),
+    stop: () => {
+      stopAnimations()
+      controller.abort()
+    },
   }
 }
