@@ -1081,7 +1081,8 @@ body {
   padding: 1rem;
 }
 
-.keepsake-image {
+.keepsake-image,
+.keepsake-video {
   max-width: 100%;
   max-height: 60vh;
   border-radius: 2px;
@@ -1098,6 +1099,36 @@ body {
   font-family: var(--font-ui);
   font-size: 0.875rem;
   letter-spacing: 0.05em;
+}
+
+.keepsake-mode-toggle {
+  display: flex;
+  background: var(--parchment-tertiary);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.keepsake-mode-btn {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  padding: 0.3rem 0.75rem;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--fog);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.keepsake-mode-btn.active {
+  background: var(--parchment);
+  color: var(--stone);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.keepsake-mode-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 .keepsake-controls {

@@ -179,7 +179,30 @@ export function triggerDownload(dataUrl: string, filename: string): void {
   document.body.removeChild(a)
 }
 
-function svgToImage(svgString: string): Promise<HTMLImageElement> {
+export function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+export function generateVideoFilename(
+  selectedYear: number | null,
+  walks: Walk[] = [],
+  mimeType: string = 'video/webm',
+): string {
+  const year = selectedYear ?? new Date().getFullYear()
+  const count = walks.length
+  const suffix = Math.random().toString(36).slice(2, 6)
+  const ext = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm'
+  return `pilgrim-moment-${year}-${count}w-${suffix}.${ext}`
+}
+
+export function svgToImage(svgString: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const encoded = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)))
     const img = new Image()
