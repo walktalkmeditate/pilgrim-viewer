@@ -914,6 +914,11 @@ export function generateKeepsakeVideo(
     }
     snapshotCtx.drawImage(mapCanvas, 0, 0)
 
+    if (walks.length === 0) {
+      reject(new Error('No walks to animate'))
+      return
+    }
+
     const allRoutePoints = walks.flatMap(extractRoutePoints)
     const combined = buildCombinedWalk(walks)
 
