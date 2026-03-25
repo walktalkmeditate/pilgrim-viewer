@@ -2,6 +2,7 @@ import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Walk, Activity, GeoJSONFeature } from '../parsers/types'
 import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
+import { createTerrainToggle } from './terrain'
 
 const ACTIVITY_COLORS: Record<Activity['type'], string> = {
   walk: '#7A8B6F',
@@ -50,6 +51,9 @@ export function createMapRenderer(
       container.appendChild(msg)
     }
   })
+
+  container.style.position = 'relative'
+  const terrainCtrl = createTerrainToggle(map, container)
 
   const activeLayers: string[] = []
   const activeSources: string[] = []
@@ -244,6 +248,7 @@ export function createMapRenderer(
 
   function remove(): void {
     clear()
+    terrainCtrl.destroy()
     map.remove()
   }
 

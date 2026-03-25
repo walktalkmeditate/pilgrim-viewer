@@ -3,6 +3,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Walk, GeoJSONFeature } from '../parsers/types'
 import { generateStatsText } from './export'
 import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
+import { createTerrainToggle } from './terrain'
 
 const SEASON_COLORS: Record<string, string> = {
   spring: '#7A8B6F',
@@ -117,6 +118,9 @@ export function createOverlayRenderer(
       container.appendChild(msg)
     }
   })
+
+  container.style.position = 'relative'
+  const terrainCtrl = createTerrainToggle(map, container)
 
   const activeSourceIds: string[] = []
   const activeLayerIds: string[] = []
@@ -351,6 +355,7 @@ export function createOverlayRenderer(
 
   function remove(): void {
     clear()
+    terrainCtrl.destroy()
     map.remove()
   }
 

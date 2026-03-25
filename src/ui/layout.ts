@@ -476,44 +476,14 @@ export function renderExportButtons(
   onExport: (theme: string) => void,
 ): void {
   const wrapper = document.createElement('div')
-  wrapper.className = 'export-section'
-
-  const themeRow = document.createElement('div')
-  themeRow.className = 'theme-picker'
-
-  const themes = [
-    { id: 'gold', color: '#C4956A', label: 'Gold' },
-    { id: 'silver', color: '#A8B4C0', label: 'Silver' },
-    { id: 'sepia', color: '#B89878', label: 'Sepia' },
-    { id: 'forest', color: '#7A9B6F', label: 'Forest' },
-  ]
-
-  let selectedTheme = 'gold'
-
-  for (const t of themes) {
-    const swatch = document.createElement('button')
-    swatch.className = `theme-swatch${t.id === selectedTheme ? ' active' : ''}`
-    swatch.style.setProperty('--swatch-color', t.color)
-    swatch.title = t.label
-    swatch.addEventListener('click', () => {
-      selectedTheme = t.id
-      for (const s of themeRow.querySelectorAll('.theme-swatch')) s.classList.remove('active')
-      swatch.classList.add('active')
-    })
-    themeRow.appendChild(swatch)
-  }
-
-  const btnRow = document.createElement('div')
-  btnRow.className = 'export-buttons'
+  wrapper.className = 'export-buttons'
 
   const btn = document.createElement('button')
   btn.className = 'export-button'
   btn.textContent = 'Generate Keepsake'
-  btn.addEventListener('click', () => onExport(selectedTheme))
+  btn.addEventListener('click', () => onExport('gold'))
 
-  btnRow.appendChild(btn)
-  wrapper.appendChild(themeRow)
-  wrapper.appendChild(btnRow)
+  wrapper.appendChild(btn)
   container.appendChild(wrapper)
 }
 
