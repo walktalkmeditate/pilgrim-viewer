@@ -49,6 +49,41 @@ export function generateLinearElevation(
   return `<polyline points="${points.join(' ')}" fill="none" stroke="${color}" stroke-width="1" opacity="${opacity}" stroke-linecap="round" stroke-linejoin="round"/>`
 }
 
+export function generateSeasonBars(
+  walks: Walk[],
+  height: number,
+  x: number,
+  yStart: number,
+  yEnd: number,
+): string {
+  const totalHeight = yEnd - yStart
+  const seasonCounts: Record<string, number> = {}
+
+  for (const walk of walks) {
+    const routePoints = extractRoutePoints(walk)
+    const lat = routePoints[0]?.lat ?? 0
+    const season = getSeason(walk.startDate, lat)
+    seasonCounts[season] = (seasonCounts[season] ?? 0) + 1
+  }
+
+  const total = walks.length
+  const bars: string[] = []
+  let currentY = yStart
+
+  for (const [season, count] of Object.entries(seasonCounts)) {
+    const segmentHeight = (count / total) * totalHeight
+    const color = SEASON_COLORS[season] ?? COLORS.dawn
+    const y2 = currentY + segmentHeight
+
+    bars.push(
+      `<line x1="${x}" y1="${currentY.toFixed(1)}" x2="${x}" y2="${y2.toFixed(1)}" stroke="${color}" stroke-width="2.5" opacity="0.4" stroke-linecap="round"/>`,
+    )
+    currentY = y2 + 8
+  }
+
+  return bars.join('\n')
+}
+
 export function generateFrameLines(
   width: number,
   height: number,
