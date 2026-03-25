@@ -1020,8 +1020,8 @@ export function generateKeepsakeVideo(
         const sealX = bwCss
         const elevXStart = sealX + 80
         const elevXEnd = cssWidth - bwCss
-        const elevYBaseline = iy + ih
-        const elevMaxAmplitude = bwCss * 0.45
+        const elevYBaseline = iy + ih + 12
+        const elevMaxAmplitude = 14
 
         const elevationPoints = computeElevationPolylines(
           walks, elevXStart, elevXEnd, elevYBaseline, elevMaxAmplitude,
