@@ -46,7 +46,7 @@ Export shared utilities that `border.ts` needs:
 - `getSeason` — export for season bar logic
 - `getWeatherTurbulence` — export for border filter
 
-No changes to seal generation logic itself.
+Additionally, refactor `generateCombinedSealSVG` to accept an optional pre-computed `hashHex` parameter. When provided, it skips internal hash computation and uses the supplied value. This allows `export.ts` to compute the hash once and pass it to both the border and seal generators, ensuring identical DNA. The combined walk construction logic (currently inline at lines 356-372) is extracted into a new `buildCombinedWalk(walks)` helper that both `export.ts` and `generateCombinedSealSVG` can use.
 
 ### Modified: `src/map/export.ts`
 
@@ -86,9 +86,9 @@ For overlay composites: each walk contributes its own polyline, layered at 0.3-0
 
 `generateSeasonBars(walks[], height, x, colors)`
 
-Divides the left border vertically into colored segments proportional to walk count per season. Uses `getSeason()` from seal.ts.
+Divides the left border vertically into colored segments proportional to walk count per season. Uses `getSeason()` from seal.ts with latitude from the walk's route points for hemisphere-aware detection.
 
-Colors:
+Colors (deliberately distinct from the overlay map legend palette — these are border ink tones, not map colors):
 - Spring: moss `#7A8B6F`
 - Summer: dawn `#C4956A`
 - Autumn: rust `#A0634B`
@@ -176,8 +176,12 @@ The hash is computed once per export and passed to both `generateBorderSvg` and 
 
 ```typescript
 const allRoutePoints = walks.flatMap(extractRoutePoints)
-const combinedWalk = buildCombinedWalk(walks)
+const combinedWalk = buildCombinedWalk(walks) // new helper, extracted from generateCombinedSealSVG
 const hashHex = await computeWalkHash(combinedWalk, allRoutePoints)
+
+// Both receive the same hash:
+const borderSvg = await generateBorderSvg(walks, width, height, variant, unit, hashHex, statsText)
+const sealSvg = await generateCombinedSealSVG(walks, sealSize, unit, hashHex)
 ```
 
 This ensures the border's generative patterns (dot positions, arc angles, ornament shapes) are coherent with the seal's patterns — same DNA expressed in different forms.
@@ -192,7 +196,7 @@ This ensures the border's generative patterns (dot positions, arc angles, orname
 | Corner arcs | Base 2 per corner | +1 per 20 walks, cap 4 |
 | Seal radials | From single hash | From combined hash |
 | Weather filter | Walk's condition | Earliest walk's condition |
-| Stats text | N/A (overlay only) | Aggregate stats |
+| Stats text | That walk's stats | Aggregate stats |
 
 ## GPX Graceful Degradation
 
