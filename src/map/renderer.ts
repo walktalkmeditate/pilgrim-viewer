@@ -1,6 +1,8 @@
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import type { Walk, Activity } from '../parsers/types'
+import type { Walk, Activity, GeoJSONFeature } from '../parsers/types'
+import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
+import { createTerrainToggle } from './terrain'
 
 const ACTIVITY_COLORS: Record<Activity['type'], string> = {
   walk: '#7A8B6F',
@@ -50,19 +52,26 @@ export function createMapRenderer(
     }
   })
 
+  container.style.position = 'relative'
+  const terrainCtrl = createTerrainToggle(map, container)
+
   const activeLayers: string[] = []
   const activeSources: string[] = []
+  const activeMarkers: mapboxgl.Marker[] = []
   let pendingLoadHandler: (() => void) | null = null
 
   function clear(): void {
+    terrainCtrl.reset()
     for (const layerId of activeLayers) {
       if (map.getLayer(layerId)) map.removeLayer(layerId)
     }
     for (const sourceId of activeSources) {
       if (map.getSource(sourceId)) map.removeSource(sourceId)
     }
+    for (const m of activeMarkers) m.remove()
     activeLayers.length = 0
     activeSources.length = 0
+    activeMarkers.length = 0
   }
 
   function addSource(id: string, data: GeoJSON.GeoJSON): void {
@@ -164,6 +173,54 @@ export function createMapRenderer(
       } as GeoJSON.Feature)
       addCircleLayer('marker-end-layer', 'marker-end-source', MARKER_END_COLOR)
 
+      const waypointFeatures = walk.route.features.filter(
+        (f): f is GeoJSONFeature => f.geometry.type === 'Point' && f.properties.markerType === 'waypoint',
+      )
+
+      if (waypointFeatures.length >= 2) {
+        const wpCoords = waypointFeatures.map(f => f.geometry.coordinates as number[])
+        addSource('emotion-journey-source', {
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: wpCoords },
+          properties: {},
+        } as GeoJSON.Feature)
+        map.addLayer({
+          id: 'emotion-journey-layer',
+          type: 'line',
+          source: 'emotion-journey-source',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: {
+            'line-color': '#C4956A',
+            'line-width': 1.5,
+            'line-opacity': 0.3,
+            'line-dasharray': [3, 4],
+          },
+        })
+        activeLayers.push('emotion-journey-layer')
+      }
+
+      for (const wp of waypointFeatures) {
+        const icon = resolveWaypointIcon(wp.properties.icon)
+        const svg = getWaypointIconSvg(icon).replace(/currentColor/g, '#8B7355')
+
+        const el = document.createElement('div')
+        el.className = 'waypoint-marker'
+        el.replaceChildren()
+        el.insertAdjacentHTML('afterbegin', svg)
+        if (wp.properties.label) {
+          const tip = document.createElement('span')
+          tip.className = 'waypoint-tooltip'
+          tip.textContent = wp.properties.label
+          el.appendChild(tip)
+        }
+
+        const coords = wp.geometry.coordinates as [number, number]
+        const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+          .setLngLat(coords)
+          .addTo(map)
+        activeMarkers.push(marker)
+      }
+
       const bounds = allCoords.reduce(
         (b, coord) => b.extend(coord as [number, number]),
         new mapboxgl.LngLatBounds(
@@ -192,6 +249,7 @@ export function createMapRenderer(
 
   function remove(): void {
     clear()
+    terrainCtrl.destroy()
     map.remove()
   }
 

@@ -13,7 +13,7 @@ import { getMapboxToken, renderTokenPrompt } from './map/token'
 import { createLayout, renderPanels, renderModeToggle, renderOverlaySidebar, renderColorSwitcher, renderExportButtons, renderYearPicker } from './ui/layout'
 import type { ModeToggleResult } from './ui/layout'
 import type { ColorMode } from './map/overlay'
-import { exportWithStats, exportClean, generateFilename } from './map/export'
+import { showKeepsakeModal } from './ui/keepsake-modal'
 import { createWalkList } from './ui/walk-list'
 import { createUnitToggle, resolveInitialUnit } from './ui/unit-toggle'
 import type { UnitSystem } from './parsers/units'
@@ -296,16 +296,13 @@ function renderMultiWalk(
         : currentWalks
 
       renderExportButtons(panelsContent,
-        () => {
+        (theme) => {
           if (!overlayRenderer) return
           const text = overlayRenderer.getStatsText()
-          const filename = generateFilename('stats', selectedYear)
-          exportWithStats(overlayRenderer.getMap(), text, filename, walksForExport, currentUnit)
-        },
-        () => {
-          if (!overlayRenderer) return
-          const filename = generateFilename('clean', selectedYear)
-          exportClean(overlayRenderer.getMap(), layout.overlayMapContainer, filename, walksForExport, currentUnit)
+          showKeepsakeModal(
+            overlayRenderer.getMap(), text, walksForExport,
+            currentUnit, selectedYear, theme as 'gold' | 'silver' | 'sepia' | 'forest',
+          )
         },
       )
 

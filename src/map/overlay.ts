@@ -1,7 +1,9 @@
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import type { Walk } from '../parsers/types'
+import type { Walk, GeoJSONFeature } from '../parsers/types'
 import { generateStatsText } from './export'
+import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
+import { createTerrainToggle } from './terrain'
 
 const SEASON_COLORS: Record<string, string> = {
   spring: '#7A8B6F',
@@ -117,8 +119,12 @@ export function createOverlayRenderer(
     }
   })
 
+  container.style.position = 'relative'
+  const terrainCtrl = createTerrainToggle(map, container)
+
   const activeSourceIds: string[] = []
   const activeLayerIds: string[] = []
+  const activeMarkers: mapboxgl.Marker[] = []
   const activeHandlers: Array<{ event: string; layer: string; handler: () => void }> = []
   let statsBar: HTMLElement | null = null
   let walkClickCallback: ((walk: Walk) => void) | null = null
@@ -128,6 +134,7 @@ export function createOverlayRenderer(
   let selectedYear: number | null = null
 
   function removeSourcesAndLayers(): void {
+    terrainCtrl.reset()
     for (const { event, layer, handler } of activeHandlers) {
       map.off(event as 'click', layer, handler)
     }
@@ -140,6 +147,8 @@ export function createOverlayRenderer(
     }
     activeLayerIds.length = 0
     activeSourceIds.length = 0
+    for (const m of activeMarkers) m.remove()
+    activeMarkers.length = 0
   }
 
   function removeStatsBar(): void {
@@ -209,6 +218,60 @@ export function createOverlayRenderer(
       { event: 'mouseenter', layer: lid, handler: enterHandler },
       { event: 'mouseleave', layer: lid, handler: leaveHandler },
     )
+
+    const wpFeatures = walk.route.features.filter(
+      (f): f is GeoJSONFeature => f.geometry.type === 'Point' && f.properties.markerType === 'waypoint',
+    )
+
+    if (wpFeatures.length >= 2) {
+      const wpCoords = wpFeatures.map(f => f.geometry.coordinates as number[])
+      const ejSid = `emotion-source-${index}`
+      const ejLid = `emotion-layer-${index}`
+      map.addSource(ejSid, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: wpCoords },
+          properties: {},
+        } as GeoJSON.Feature,
+      })
+      activeSourceIds.push(ejSid)
+      map.addLayer({
+        id: ejLid,
+        type: 'line',
+        source: ejSid,
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#C4956A',
+          'line-width': 1,
+          'line-opacity': 0.2,
+          'line-dasharray': [3, 4],
+        },
+      })
+      activeLayerIds.push(ejLid)
+    }
+
+    for (const wp of wpFeatures) {
+      const icon = resolveWaypointIcon(wp.properties.icon)
+      const svgContent = getWaypointIconSvg(icon).replace(/currentColor/g, '#C4956A')
+
+      const el = document.createElement('div')
+      el.className = 'waypoint-marker waypoint-marker-overlay'
+      el.replaceChildren()
+      el.insertAdjacentHTML('afterbegin', svgContent)
+      if (wp.properties.label) {
+        const tip = document.createElement('span')
+        tip.className = 'waypoint-tooltip'
+        tip.textContent = wp.properties.label
+        el.appendChild(tip)
+      }
+
+      const coords = wp.geometry.coordinates as [number, number]
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+        .setLngLat(coords)
+        .addTo(map)
+      activeMarkers.push(marker)
+    }
   }
 
   function fitToAllWalks(walks: Walk[]): void {
@@ -293,6 +356,7 @@ export function createOverlayRenderer(
 
   function remove(): void {
     clear()
+    terrainCtrl.destroy()
     map.remove()
   }
 

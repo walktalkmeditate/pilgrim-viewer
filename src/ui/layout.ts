@@ -8,6 +8,7 @@ import { renderIntentionPanel } from '../panels/intention'
 import { renderWeatherPanel } from '../panels/weather'
 import { renderTranscriptionsPanel } from '../panels/transcriptions'
 import { renderCelestialPanel } from '../panels/celestial'
+import { renderWaypointsPanel } from '../panels/waypoints'
 import { formatDistance, formatDuration } from '../parsers/units'
 import { getWalkColor } from '../map/overlay'
 import type { ColorMode } from '../map/overlay'
@@ -198,6 +199,7 @@ export function renderPanels(
   renderSealPanel(sealContainer, walk, unit)
 
   renderStatsPanel(panelsContent, walk, unit)
+  renderWaypointsPanel(panelsContent, walk, unit)
   renderElevationPanel(panelsContent, walk, unit)
   renderTimelinePanel(panelsContent, walk)
   renderIntentionPanel(panelsContent, walk)
@@ -471,24 +473,17 @@ export function renderColorSwitcher(
 
 export function renderExportButtons(
   container: HTMLElement,
-  onExportStats: () => void,
-  onExportClean: () => void,
+  onExport: (theme: string) => void,
 ): void {
   const wrapper = document.createElement('div')
   wrapper.className = 'export-buttons'
 
-  const statsBtn = document.createElement('button')
-  statsBtn.className = 'export-button'
-  statsBtn.textContent = 'Export with stats'
-  statsBtn.addEventListener('click', onExportStats)
+  const btn = document.createElement('button')
+  btn.className = 'export-button'
+  btn.textContent = 'Generate Keepsake'
+  btn.addEventListener('click', () => onExport('gold'))
 
-  const cleanBtn = document.createElement('button')
-  cleanBtn.className = 'export-button'
-  cleanBtn.textContent = 'Export clean'
-  cleanBtn.addEventListener('click', onExportClean)
-
-  wrapper.appendChild(statsBtn)
-  wrapper.appendChild(cleanBtn)
+  wrapper.appendChild(btn)
   container.appendChild(wrapper)
 }
 

@@ -3,36 +3,33 @@ import { generateFilename, generateStatsText } from '../../src/map/export'
 import type { Walk } from '../../src/parsers/types'
 
 describe('generateFilename', () => {
-  it('returns base overlay filename for stats variant with no year', () => {
-    // #given / #when
-    const result = generateFilename('stats', null)
+  it('includes keepsake, year, walk count and unique suffix', () => {
+    // #given
+    const walks = [{ startDate: new Date() } as Walk, { startDate: new Date() } as Walk]
+
+    // #when
+    const result = generateFilename(2026, walks)
 
     // #then
-    expect(result).toBe('pilgrim-overlay.png')
+    expect(result).toMatch(/^pilgrim-keepsake-2026-2w-[a-z0-9]{4}\.png$/)
   })
 
-  it('returns clean overlay filename for clean variant with no year', () => {
+  it('uses current year when no year selected', () => {
     // #given / #when
-    const result = generateFilename('clean', null)
+    const result = generateFilename(null)
+    const year = new Date().getFullYear()
 
     // #then
-    expect(result).toBe('pilgrim-overlay-clean.png')
+    expect(result).toContain(`keepsake-${year}`)
   })
 
-  it('returns year-scoped filename for stats variant with year', () => {
+  it('generates unique filenames on repeated calls', () => {
     // #given / #when
-    const result = generateFilename('stats', 2026)
+    const a = generateFilename(2026)
+    const b = generateFilename(2026)
 
     // #then
-    expect(result).toBe('pilgrim-2026.png')
-  })
-
-  it('returns year-scoped clean filename for clean variant with year', () => {
-    // #given / #when
-    const result = generateFilename('clean', 2026)
-
-    // #then
-    expect(result).toBe('pilgrim-2026-clean.png')
+    expect(a).not.toBe(b)
   })
 })
 
