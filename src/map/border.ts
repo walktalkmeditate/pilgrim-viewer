@@ -4,6 +4,7 @@ import {
   computeWalkHash, hexToBytes, extractRoutePoints, buildCombinedWalk,
   getSeason, getWeatherTurbulence, COLORS,
 } from '../panels/seal'
+import type { RoutePoint } from '../panels/seal'
 
 const BORDER_COLOR = COLORS.dawn
 
@@ -12,6 +13,40 @@ const SEASON_COLORS: Record<string, string> = {
   Summer: '#C4956A',
   Autumn: '#A0634B',
   Winter: '#B8AFA2',
+}
+
+export function generateLinearElevation(
+  routePoints: RoutePoint[],
+  xStart: number,
+  xEnd: number,
+  yBaseline: number,
+  maxAmplitude: number,
+  color: string,
+  opacity: number = 0.35,
+): string {
+  if (routePoints.length < 2) return ''
+
+  const alts = routePoints.map(p => p.alt)
+  let minAlt = Infinity
+  let maxAlt = -Infinity
+  for (const a of alts) {
+    if (a < minAlt) minAlt = a
+    if (a > maxAlt) maxAlt = a
+  }
+  const altRange = Math.max(maxAlt - minAlt, 1)
+
+  const totalWidth = xEnd - xStart
+  const step = totalWidth / (routePoints.length - 1)
+
+  const points: string[] = []
+  for (let i = 0; i < routePoints.length; i++) {
+    const x = xStart + i * step
+    const normalized = (alts[i] - minAlt) / altRange
+    const y = yBaseline - normalized * maxAmplitude
+    points.push(`${x.toFixed(1)},${y.toFixed(1)}`)
+  }
+
+  return `<polyline points="${points.join(' ')}" fill="none" stroke="${color}" stroke-width="1" opacity="${opacity}" stroke-linecap="round" stroke-linejoin="round"/>`
 }
 
 export function generateFrameLines(
