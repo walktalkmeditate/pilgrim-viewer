@@ -5,14 +5,17 @@ import type { UnitSystem } from '../parsers/units'
 import { formatDistance } from '../parsers/units'
 import { getDominantTimeBucket } from './overlay'
 import { generateCombinedSealSVG, buildCombinedWalk, computeWalkHash, extractRoutePoints } from '../panels/seal'
-import { generateBorderSvg, BORDER_WIDTH } from './border'
+import { generateBorderSvg, BORDER_WIDTH, BORDER_THEMES } from './border'
+import type { BorderTheme } from './border'
 
 export function generateFilename(
-  variant: 'stats' | 'clean',
   selectedYear: number | null,
+  walks: Walk[] = [],
 ): string {
-  const base = selectedYear ? `pilgrim-${selectedYear}` : 'pilgrim-overlay'
-  return variant === 'clean' ? `${base}-clean.png` : `${base}.png`
+  const year = selectedYear ?? new Date().getFullYear()
+  const count = walks.length
+  const suffix = Math.random().toString(36).slice(2, 6)
+  return `pilgrim-keepsake-${year}-${count}w-${suffix}.png`
 }
 
 export function generateStatsText(
@@ -70,12 +73,13 @@ function restoreRoutes(map: mapboxgl.Map, saved: Array<{ id: string; width: numb
   }
 }
 
-export function exportWithStats(
+export function exportKeepsake(
   map: mapboxgl.Map,
   statsText: string,
   filename: string,
   walks: Walk[] = [],
   unit: UnitSystem = 'metric',
+  theme: BorderTheme = 'gold',
 ): void {
   const saved = boostRoutes(map)
   map.triggerRepaint()
@@ -94,7 +98,8 @@ export function exportWithStats(
     const ctx = canvas.getContext('2d')
     if (!ctx) { restoreRoutes(map, saved); return }
 
-    ctx.fillStyle = '#1C1914'
+    const palette = BORDER_THEMES[theme]
+    ctx.fillStyle = palette.background
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     if (walks.length > 0) {
@@ -105,7 +110,7 @@ export function exportWithStats(
 
         const borderSvg = await generateBorderSvg(
           walks, canvas.width / dpr, canvas.height / dpr,
-          'stats', unit, hashHex, statsText,
+          unit, hashHex, statsText, theme,
         )
         const borderImg = await svgToImage(borderSvg)
         ctx.drawImage(borderImg, 0, 0, canvas.width, canvas.height)
@@ -116,75 +121,7 @@ export function exportWithStats(
         const sealSvg = await generateCombinedSealSVG(walks, sealSize, unit, hashHex)
         if (sealSvg) {
           const sealImg = await svgToImage(sealSvg)
-          ctx.globalAlpha = 0.65
-          ctx.drawImage(
-            sealImg,
-            bw - sealSize / 2,
-            canvas.height - bw - sealSize / 2,
-            sealSize, sealSize,
-          )
-          ctx.globalAlpha = 1.0
-        }
-      } catch (err) {
-        console.warn('Border/seal compositing failed:', err)
-        ctx.drawImage(mapCanvas, bw, bw)
-      }
-    } else {
-      ctx.drawImage(mapCanvas, bw, bw)
-    }
-
-    restoreRoutes(map, saved)
-    triggerDownload(canvas.toDataURL('image/png'), filename)
-  })
-}
-
-export function exportClean(
-  map: mapboxgl.Map,
-  _container: HTMLElement,
-  filename: string,
-  walks: Walk[] = [],
-  unit: UnitSystem = 'metric',
-): void {
-  const saved = boostRoutes(map)
-  map.triggerRepaint()
-
-  requestAnimationFrame(async () => {
-    const mapCanvas = map.getCanvas()
-    const width = mapCanvas.width
-    const height = mapCanvas.height
-    const dpr = window.devicePixelRatio || 1
-    const bw = BORDER_WIDTH * dpr
-
-    const canvas = document.createElement('canvas')
-    canvas.width = width + bw * 2
-    canvas.height = height + bw * 2
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) { restoreRoutes(map, saved); return }
-
-    ctx.fillStyle = '#1C1914'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-    if (walks.length > 0) {
-      try {
-        const combined = buildCombinedWalk(walks)
-        const allRoutePoints = walks.flatMap(extractRoutePoints)
-        const hashHex = await computeWalkHash(combined, allRoutePoints)
-
-        const borderSvg = await generateBorderSvg(
-          walks, canvas.width / dpr, canvas.height / dpr,
-          'clean', unit, hashHex,
-        )
-        const borderImg = await svgToImage(borderSvg)
-        ctx.drawImage(borderImg, 0, 0, canvas.width, canvas.height)
-
-        ctx.drawImage(mapCanvas, bw, bw)
-
-        const sealSize = Math.round(150 * dpr)
-        const sealSvg = await generateCombinedSealSVG(walks, sealSize, unit, hashHex)
-        if (sealSvg) {
-          const sealImg = await svgToImage(sealSvg)
-          ctx.globalAlpha = 0.65
+          ctx.globalAlpha = 0.8
           ctx.drawImage(
             sealImg,
             bw - sealSize / 2,

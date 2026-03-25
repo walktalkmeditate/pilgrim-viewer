@@ -471,24 +471,47 @@ export function renderColorSwitcher(
 
 export function renderExportButtons(
   container: HTMLElement,
-  onExportStats: () => void,
-  onExportClean: () => void,
+  onExport: (theme: string) => void,
 ): void {
   const wrapper = document.createElement('div')
-  wrapper.className = 'export-buttons'
+  wrapper.className = 'export-section'
 
-  const statsBtn = document.createElement('button')
-  statsBtn.className = 'export-button'
-  statsBtn.textContent = 'Export with stats'
-  statsBtn.addEventListener('click', onExportStats)
+  const themeRow = document.createElement('div')
+  themeRow.className = 'theme-picker'
 
-  const cleanBtn = document.createElement('button')
-  cleanBtn.className = 'export-button'
-  cleanBtn.textContent = 'Export clean'
-  cleanBtn.addEventListener('click', onExportClean)
+  const themes = [
+    { id: 'gold', color: '#C4956A', label: 'Gold' },
+    { id: 'silver', color: '#A8B4C0', label: 'Silver' },
+    { id: 'sepia', color: '#B89878', label: 'Sepia' },
+    { id: 'forest', color: '#7A9B6F', label: 'Forest' },
+  ]
 
-  wrapper.appendChild(statsBtn)
-  wrapper.appendChild(cleanBtn)
+  let selectedTheme = 'gold'
+
+  for (const t of themes) {
+    const swatch = document.createElement('button')
+    swatch.className = `theme-swatch${t.id === selectedTheme ? ' active' : ''}`
+    swatch.style.setProperty('--swatch-color', t.color)
+    swatch.title = t.label
+    swatch.addEventListener('click', () => {
+      selectedTheme = t.id
+      for (const s of themeRow.querySelectorAll('.theme-swatch')) s.classList.remove('active')
+      swatch.classList.add('active')
+    })
+    themeRow.appendChild(swatch)
+  }
+
+  const btnRow = document.createElement('div')
+  btnRow.className = 'export-buttons'
+
+  const btn = document.createElement('button')
+  btn.className = 'export-button'
+  btn.textContent = 'Generate Keepsake'
+  btn.addEventListener('click', () => onExport(selectedTheme))
+
+  btnRow.appendChild(btn)
+  wrapper.appendChild(themeRow)
+  wrapper.appendChild(btnRow)
   container.appendChild(wrapper)
 }
 

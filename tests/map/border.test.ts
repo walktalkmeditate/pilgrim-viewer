@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateFrameLines, generateLinearElevation, generateSeasonBars, generateCornerOrnaments, generateEdgeDots, generateSealRadials, generateBorderStatsText, generateWeatherFilter, generateBorderSvg } from '../../src/map/border'
+import { generateFrameLines, generateLinearElevation, generateSeasonBars, generateCornerOrnaments, generateEdgeDots, generateSealRadials, generateBorderStatsText, generateWeatherFilter, generateBorderSvg, generateTallyMarks, generateDateRange, generateCompassRose, generateRouteGhost, generatePaperGrain, generateStreakCalendar } from '../../src/map/border'
 import { hexToBytes } from '../../src/panels/seal'
 import type { Walk } from '../../src/parsers/types'
 
@@ -47,7 +47,7 @@ describe('generateFrameLines', () => {
 
     // #then
     expect(svg).toContain('<rect')
-    expect((svg.match(/<rect/g) ?? []).length).toBe(2)
+    expect((svg.match(/<rect/g) ?? []).length).toBeGreaterThanOrEqual(4)
     expect(svg).toContain(color)
   })
 })
@@ -136,22 +136,23 @@ describe('generateSealRadials', () => {
 })
 
 describe('generateBorderStatsText', () => {
-  it('produces centered text element with stats', () => {
+  it('splits distance into hero number and rest below', () => {
     // #given
-    const statsText = '12 walks · 48.3 km · 3 seasons'
+    const statsText = '12 walks \u00B7 48.3 km \u00B7 3 seasons'
 
     // #when
-    const svg = generateBorderStatsText(statsText, 400, 280, '#C4956A')
+    const svg = generateBorderStatsText(statsText, 400, 60, 300, '#C4956A')
 
     // #then
     expect(svg).toContain('<text')
-    expect(svg).toContain('12 walks')
-    expect(svg).toContain('text-anchor="middle"')
+    expect(svg).toContain('48.3 km')
+    expect(svg).toContain('Cormorant Garamond')
+    expect(svg).toContain('text-anchor="end"')
   })
 
   it('returns empty string when statsText is undefined', () => {
     // #when
-    const svg = generateBorderStatsText(undefined, 400, 280, '#C4956A')
+    const svg = generateBorderStatsText(undefined, 400, 60, 300, '#C4956A')
 
     // #then
     expect(svg).toBe('')
@@ -219,7 +220,7 @@ describe('generateBorderSvg', () => {
     const statsText = '1 walk · 5.00 km · 1 season'
 
     // #when
-    const svg = await generateBorderSvg(walks, 400, 300, 'stats', 'metric', hashHex, statsText)
+    const svg = await generateBorderSvg(walks, 400, 300, 'metric', hashHex, statsText)
 
     // #then
     expect(svg).toContain('<svg')
@@ -227,20 +228,20 @@ describe('generateBorderSvg', () => {
     expect(svg).toContain('<rect')    // frame lines
     expect(svg).toContain('<polyline') // elevation trace
     expect(svg).toContain('1 walk')    // stats text
-    expect(svg).toContain('<filter')   // weather filter
+    expect(svg).toContain('<circle')   // edge dots
   })
 
-  it('omits stats text for clean variant', async () => {
+  it('omits stats text when statsText is not provided', async () => {
     // #given
     const walks = [makeWalk()]
     const hashHex = TEST_HASH
 
     // #when
-    const svg = await generateBorderSvg(walks, 400, 300, 'clean', 'metric', hashHex)
+    const svg = await generateBorderSvg(walks, 400, 300, 'metric', hashHex)
 
     // #then
     expect(svg).toContain('<svg')
-    expect(svg).not.toContain('1 walk')
+    expect(svg).not.toContain('Cormorant Garamond')
   })
 
   it('produces denser elements for multi-walk overlay', async () => {
@@ -253,10 +254,151 @@ describe('generateBorderSvg', () => {
     )
 
     // #when
-    const svg = await generateBorderSvg(walks, 400, 300, 'stats', 'metric', TEST_HASH, '25 walks')
+    const svg = await generateBorderSvg(walks, 400, 300, 'metric', TEST_HASH, '25 walks')
 
     // #then
     const circles = svg.match(/<circle/g) ?? []
     expect(circles.length).toBeGreaterThan(5) // scaled dots
+  })
+})
+
+describe('generateTallyMarks', () => {
+  it('produces one mark per walk', () => {
+    // #given
+    const walks = [makeWalk(), makeWalk({ id: 'w2' }), makeWalk({ id: 'w3' })]
+
+    // #when
+    const svg = generateTallyMarks(walks, 400, 300, 60)
+
+    // #then
+    const lines = svg.match(/<line/g) ?? []
+    expect(lines.length).toBe(3)
+  })
+
+  it('returns empty string for no walks', () => {
+    expect(generateTallyMarks([], 400, 300, 60)).toBe('')
+  })
+})
+
+describe('generateDateRange', () => {
+  it('produces date range text for walks spanning months', () => {
+    // #given
+    const walks = [
+      makeWalk({ startDate: new Date('2024-03-15T10:00:00Z') }),
+      makeWalk({ startDate: new Date('2024-09-20T10:00:00Z') }),
+    ]
+
+    // #when
+    const svg = generateDateRange(walks, 400, 60, '#C4956A')
+
+    // #then
+    expect(svg).toContain('<text')
+    expect(svg).toContain('Mar')
+    expect(svg).toContain('Sep')
+  })
+
+  it('shows single month for same-month walks', () => {
+    // #given
+    const walks = [
+      makeWalk({ startDate: new Date('2024-06-10T10:00:00Z') }),
+      makeWalk({ startDate: new Date('2024-06-20T10:00:00Z') }),
+    ]
+
+    // #when
+    const svg = generateDateRange(walks, 400, 60, '#C4956A')
+
+    // #then
+    expect(svg).toContain('Jun 2024')
+    expect(svg).not.toContain('\u2013')
+  })
+})
+
+describe('generateCompassRose', () => {
+  it('produces cardinal lines and labels', () => {
+    // #given / #when
+    const svg = generateCompassRose(testBytes, 370, 30, 25, '#C4956A')
+
+    // #then
+    expect(svg).toContain('N')
+    expect(svg).toContain('E')
+    expect(svg).toContain('S')
+    expect(svg).toContain('W')
+    expect(svg).toContain('<line')
+    expect(svg).toContain('<circle')
+  })
+})
+
+describe('generateFrameLines with elevation', () => {
+  it('uses path instead of rect for inner frame when elevation provided', () => {
+    // #given
+    const elevPoints = 'L300,240 L200,230 L100,235'
+
+    // #when
+    const svg = generateFrameLines(400, 300, 60, '#C4956A', '#F0EBE1', elevPoints)
+
+    // #then
+    expect(svg).toContain('<path')
+    expect(svg).toContain(elevPoints)
+  })
+})
+
+describe('generateRouteGhost', () => {
+  it('produces faint polylines from walk routes', () => {
+    // #given
+    const walks = [makeWalk({
+      route: {
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [[-122.4, 37.7, 10], [-122.3, 37.8, 15], [-122.2, 37.9, 20], [-122.1, 38.0, 25]],
+          },
+          properties: {},
+        }],
+      },
+    })]
+
+    // #when
+    const svg = generateRouteGhost(walks, 400, 300, 60, '#C4956A')
+
+    // #then
+    expect(svg).toContain('<polyline')
+    expect(svg).toContain('opacity="0.04"')
+  })
+})
+
+describe('generatePaperGrain', () => {
+  it('produces filter and rect elements for border areas', () => {
+    // #when
+    const svg = generatePaperGrain(400, 300, 60)
+
+    // #then
+    expect(svg).toContain('<filter')
+    expect(svg).toContain('fractalNoise')
+    expect(svg).toContain('<rect')
+  })
+})
+
+describe('generateStreakCalendar', () => {
+  it('produces dots for walk days and rest days', () => {
+    // #given — 3 walks over 5 days
+    const walks = [
+      makeWalk({ startDate: new Date('2024-06-10T10:00:00Z') }),
+      makeWalk({ startDate: new Date('2024-06-12T10:00:00Z') }),
+      makeWalk({ startDate: new Date('2024-06-14T10:00:00Z') }),
+    ]
+
+    // #when
+    const svg = generateStreakCalendar(walks, 400, 300, 60, '#C4956A')
+
+    // #then
+    expect(svg).toContain('<circle')
+    const circles = svg.match(/<circle/g) ?? []
+    expect(circles.length).toBe(5) // 5 days total, 3 filled + 2 empty
+  })
+
+  it('returns empty for no walks', () => {
+    expect(generateStreakCalendar([], 400, 300, 60, '#C4956A')).toBe('')
   })
 })
