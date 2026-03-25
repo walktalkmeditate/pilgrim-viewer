@@ -193,11 +193,13 @@ export function triggerBlobDownload(blob: Blob, filename: string): void {
 export function generateVideoFilename(
   selectedYear: number | null,
   walks: Walk[] = [],
+  mimeType: string = 'video/webm',
 ): string {
   const year = selectedYear ?? new Date().getFullYear()
   const count = walks.length
   const suffix = Math.random().toString(36).slice(2, 6)
-  return `pilgrim-moment-${year}-${count}w-${suffix}.webm`
+  const ext = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm'
+  return `pilgrim-moment-${year}-${count}w-${suffix}.${ext}`
 }
 
 export function svgToImage(svgString: string): Promise<HTMLImageElement> {

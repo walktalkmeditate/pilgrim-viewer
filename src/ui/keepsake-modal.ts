@@ -4,6 +4,7 @@ import type { BorderTheme } from '../map/border'
 import type mapboxgl from 'mapbox-gl'
 import { generateKeepsakeImage, generateFilename, generateVideoFilename, triggerDownload, triggerBlobDownload } from '../map/export'
 import { generateKeepsakeVideo } from '../map/keepsake-animator'
+import type { VideoResult } from '../map/keepsake-animator'
 
 const THEMES: Array<{ id: BorderTheme; color: string; label: string }> = [
   { id: 'gold', color: '#C4956A', label: 'Gold' },
@@ -24,7 +25,7 @@ export function showKeepsakeModal(
 ): void {
   let currentTheme = initialTheme
   let currentDataUrl: string | null = null
-  let currentVideoBlob: Blob | null = null
+  let currentVideo: VideoResult | null = null
   let currentVideoUrl: string | null = null
   let generating = false
   let mode: 'image' | 'moment' = 'image'
@@ -148,8 +149,8 @@ export function showKeepsakeModal(
   function save(): void {
     if (mode === 'image' && currentDataUrl) {
       triggerDownload(currentDataUrl, generateFilename(selectedYear, walks))
-    } else if (mode === 'moment' && currentVideoBlob) {
-      triggerBlobDownload(currentVideoBlob, generateVideoFilename(selectedYear, walks))
+    } else if (mode === 'moment' && currentVideo) {
+      triggerBlobDownload(currentVideo.blob, generateVideoFilename(selectedYear, walks, currentVideo.mimeType))
     }
   }
 
@@ -179,11 +180,11 @@ export function showKeepsakeModal(
         img.style.opacity = '1'
       } else {
         abortController = new AbortController()
-        const blob = await generateKeepsakeVideo(map, statsText, walks, unit, currentTheme, abortController.signal)
+        const result = await generateKeepsakeVideo(map, statsText, walks, unit, currentTheme, abortController.signal)
         abortController = null
         if (currentVideoUrl) URL.revokeObjectURL(currentVideoUrl)
-        currentVideoBlob = blob
-        currentVideoUrl = URL.createObjectURL(blob)
+        currentVideo = result
+        currentVideoUrl = URL.createObjectURL(result.blob)
         video.src = currentVideoUrl
       }
       saveBtn.disabled = false

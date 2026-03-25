@@ -4,7 +4,6 @@ import type { UnitSystem } from '../parsers/units'
 import type { BorderTheme, BorderPalette } from './border'
 import { BORDER_WIDTH, BORDER_THEMES } from './border'
 import { hexToBytes, extractRoutePoints, getSeason, COLORS, computeWalkHash, buildCombinedWalk } from '../panels/seal'
-import type { RoutePoint } from '../panels/seal'
 import { generateCombinedSealSVG } from '../panels/seal'
 import { svgToImage } from './export'
 import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
@@ -34,10 +33,9 @@ interface AnimationConfig {
   walks: Walk[]
   statsText: string
   routeProjections: Array<Array<{ x: number; y: number }>>
-  waypointPositions: Array<{ x: number; y: number; icon: string; progress: number; image: HTMLImageElement | null }>
+  waypointPositions: Array<{ x: number; y: number; progress: number; image: HTMLImageElement | null }>
   seasonData: Array<{ season: string; count: number }>
   seasonColors: Record<string, string>
-  allRoutePoints: RoutePoint[]
   dateRangeText: string
   compassCx: number
   compassCy: number
@@ -637,7 +635,7 @@ function drawElevationTraces(ctx: CanvasRenderingContext2D, config: AnimationCon
 function drawRouteCalligraphy(ctx: CanvasRenderingContext2D, config: AnimationConfig, progress: number): void {
   if (progress <= 0) return
 
-  const { bw, dpr, palette, routeProjections } = config
+  const { bw, palette, routeProjections } = config
 
   ctx.save()
   ctx.strokeStyle = palette.primary
@@ -676,7 +674,7 @@ function drawRouteCalligraphy(ctx: CanvasRenderingContext2D, config: AnimationCo
 }
 
 function drawWaypointIcons(ctx: CanvasRenderingContext2D, config: AnimationConfig, routeProgress: number): void {
-  const { bw, dpr, waypointPositions } = config
+  const { bw, waypointPositions } = config
 
   ctx.save()
 
@@ -874,11 +872,17 @@ function chooseMimeType(): string {
     'video/webm; codecs=vp9',
     'video/webm; codecs=vp8',
     'video/webm',
+    'video/mp4',
   ]
   for (const mime of candidates) {
     if (MediaRecorder.isTypeSupported(mime)) return mime
   }
   return 'video/webm'
+}
+
+export interface VideoResult {
+  blob: Blob
+  mimeType: string
 }
 
 export function generateKeepsakeVideo(
@@ -888,7 +892,7 @@ export function generateKeepsakeVideo(
   unit: UnitSystem,
   theme: BorderTheme,
   signal?: AbortSignal,
-): Promise<Blob> {
+): Promise<VideoResult> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
       reject(new DOMException('Aborted', 'AbortError'))
@@ -922,8 +926,13 @@ export function generateKeepsakeVideo(
     const allRoutePoints = walks.flatMap(extractRoutePoints)
     const combined = buildCombinedWalk(walks)
 
+    const checkAborted = (): void => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    }
+
     computeWalkHash(combined, allRoutePoints)
       .then(async (hashHex) => {
+        checkAborted()
         const bytes = hexToBytes(hashHex)
 
         const sealSizeCss = 150
@@ -937,6 +946,8 @@ export function generateKeepsakeVideo(
         } catch {
           // seal rendering is non-critical
         }
+
+        checkAborted()
 
         const routeProjections: Array<Array<{ x: number; y: number }>> = walks.map(walk => {
           const coords: Array<{ x: number; y: number }> = []
@@ -993,7 +1004,6 @@ export function generateKeepsakeVideo(
           waypointPositions.push({
             x: pixel.x,
             y: pixel.y,
-            icon,
             progress: nearestProgress,
             image,
           })
@@ -1046,7 +1056,6 @@ export function generateKeepsakeVideo(
           waypointPositions,
           seasonData,
           seasonColors,
-          allRoutePoints,
           dateRangeText,
           compassCx,
           compassCy,
@@ -1083,30 +1092,38 @@ export function generateKeepsakeVideo(
           return
         }
 
+        if (signal?.aborted) {
+          reject(new DOMException('Aborted', 'AbortError'))
+          return
+        }
+
         const recorder = new MediaRecorder(stream, { mimeType })
         const chunks: Blob[] = []
+        let wasAborted = false
 
         recorder.ondataavailable = (e) => {
           if (e.data.size > 0) chunks.push(e.data)
         }
 
         recorder.onstop = () => {
+          if (wasAborted) return
           const blob = new Blob(chunks, { type: mimeType })
-          resolve(blob)
+          resolve({ blob, mimeType })
         }
 
         recorder.onerror = () => {
           reject(new Error('MediaRecorder encountered an error'))
         }
 
-        recorder.start()
+        recorder.start(1000)
 
         let currentFrame = 0
         let lastFrameTime = 0
         const frameDuration = 1000 / FPS
 
         const onAbort = (): void => {
-          recorder.stop()
+          wasAborted = true
+          if (recorder.state !== 'inactive') recorder.stop()
           reject(new DOMException('Aborted', 'AbortError'))
         }
         signal?.addEventListener('abort', onAbort, { once: true })
@@ -1126,7 +1143,6 @@ export function generateKeepsakeVideo(
 
           drawAnimationFrame(ctx, currentFrame, config)
 
-          // requestFrame exists on CanvasCapture tracks but is not in all TS lib defs
           if ('requestFrame' in track) {
             (track as unknown as { requestFrame: () => void }).requestFrame()
           }
@@ -1144,6 +1160,12 @@ export function generateKeepsakeVideo(
 
         requestAnimationFrame(tick)
       })
-      .catch(reject)
+      .catch((err) => {
+        if (signal?.aborted) {
+          reject(new DOMException('Aborted', 'AbortError'))
+        } else {
+          reject(err)
+        }
+      })
   })
 }
