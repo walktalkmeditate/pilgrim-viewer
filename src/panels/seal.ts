@@ -1,13 +1,13 @@
 import type { Walk } from '../parsers/types'
 import type { UnitSystem } from '../parsers/units'
 
-const COLORS = {
+export const COLORS = {
   stone: '#8B7355',
   dawn: '#C4956A',
   fog: '#B8AFA2',
 } as const
 
-function getSeason(date: Date, latitude: number): string {
+export function getSeason(date: Date, latitude: number): string {
   const month = date.getUTCMonth()
   const isNorthern = latitude >= 0
 
@@ -33,7 +33,7 @@ function getTimeOfDay(hour: number): string {
   return 'Night'
 }
 
-function getWeatherTurbulence(condition?: string): { freq: string; octaves: number; scale: number } {
+export function getWeatherTurbulence(condition?: string): { freq: string; octaves: number; scale: number } {
   switch (condition?.toLowerCase()) {
     case 'rain': case 'drizzle': case 'thunderstorm':
       return { freq: '0.06', octaves: 4, scale: 2.0 }
@@ -46,13 +46,13 @@ function getWeatherTurbulence(condition?: string): { freq: string; octaves: numb
   }
 }
 
-interface RoutePoint {
+export interface RoutePoint {
   lat: number
   lon: number
   alt: number
 }
 
-function extractRoutePoints(walk: Walk): RoutePoint[] {
+export function extractRoutePoints(walk: Walk): RoutePoint[] {
   const points: RoutePoint[] = []
   for (const feature of walk.route.features) {
     if (feature.geometry.type === 'LineString') {
@@ -65,7 +65,7 @@ function extractRoutePoints(walk: Walk): RoutePoint[] {
   return points
 }
 
-async function computeWalkHash(walk: Walk, routePoints: RoutePoint[]): Promise<string> {
+export async function computeWalkHash(walk: Walk, routePoints: RoutePoint[]): Promise<string> {
   const parts: string[] = []
 
   for (const p of routePoints) {
@@ -87,7 +87,7 @@ async function computeWalkHash(walk: Walk, routePoints: RoutePoint[]): Promise<s
     .join('')
 }
 
-function hexToBytes(hex: string): Uint8Array {
+export function hexToBytes(hex: string): Uint8Array {
   const bytes = new Uint8Array(hex.length / 2)
   for (let i = 0; i < hex.length; i += 2) {
     bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16)
@@ -339,27 +339,14 @@ export async function renderSealPanel(
   container.appendChild(wrapper)
 }
 
-export async function generateCombinedSealSVG(
-  walks: Walk[],
-  size: number,
-  unit: UnitSystem = 'metric',
-): Promise<string | null> {
-  if (typeof crypto === 'undefined' || !crypto.subtle) return null
-  if (walks.length === 0) return null
-
-  const allRoutePoints: RoutePoint[] = []
-  for (const walk of walks) {
-    for (const p of extractRoutePoints(walk)) allRoutePoints.push(p)
-  }
-  if (allRoutePoints.length === 0) return null
-
+export function buildCombinedWalk(walks: Walk[]): Walk {
   const totalDistance = walks.reduce((s, w) => s + w.stats.distance, 0)
   const totalActiveDuration = walks.reduce((s, w) => s + w.stats.activeDuration, 0)
   const totalMeditateDuration = walks.reduce((s, w) => s + w.stats.meditateDuration, 0)
   const totalTalkDuration = walks.reduce((s, w) => s + w.stats.talkDuration, 0)
   const earliestWalk = walks.reduce((min, w) => w.startDate < min.startDate ? w : min, walks[0])
 
-  const combinedWalk: Walk = {
+  return {
     ...earliestWalk,
     id: 'combined-journey',
     stats: {
@@ -370,8 +357,23 @@ export async function generateCombinedSealSVG(
       talkDuration: totalTalkDuration,
     },
   }
+}
 
-  const hash = await computeWalkHash(combinedWalk, allRoutePoints)
+export async function generateCombinedSealSVG(
+  walks: Walk[],
+  size: number,
+  unit: UnitSystem = 'metric',
+  hashHex?: string,
+): Promise<string | null> {
+  if (typeof crypto === 'undefined' || !crypto.subtle) return null
+  if (walks.length === 0) return null
+
+  const allRoutePoints = walks.flatMap(extractRoutePoints)
+  if (allRoutePoints.length === 0) return null
+
+  const combinedWalk = buildCombinedWalk(walks)
+
+  const hash = hashHex ?? await computeWalkHash(combinedWalk, allRoutePoints)
   const bytes = hexToBytes(hash)
 
   return generateSealSvg(bytes, combinedWalk, allRoutePoints, size, unit)
