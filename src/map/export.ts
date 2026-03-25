@@ -98,7 +98,7 @@ export function generateKeepsakeImage(
         canvas.height = height + bw * 2
 
         const ctx = canvas.getContext('2d')
-        if (!ctx) { restoreRoutes(map, saved); reject(new Error('No canvas context')); return }
+        if (!ctx) { reject(new Error('No canvas context')); return }
 
         const palette = BORDER_THEMES[theme]
         ctx.fillStyle = palette.background
@@ -109,7 +109,7 @@ export function generateKeepsakeImage(
           const allRoutePoints = walks.flatMap(extractRoutePoints)
           const hashHex = await computeWalkHash(combined, allRoutePoints)
 
-          const borderSvg = await generateBorderSvg(
+          const borderSvg = generateBorderSvg(
             walks, canvas.width / dpr, canvas.height / dpr,
             unit, hashHex, statsText, theme,
           )
@@ -138,6 +138,7 @@ export function generateKeepsakeImage(
             ),
           )
 
+          // Waypoint pixel positions: map.project returns CSS pixels, canvas is in device pixels
           for (const wp of allWaypoints) {
             const coords = wp.geometry.coordinates as [number, number]
             const pixel = map.project(coords)
@@ -159,11 +160,11 @@ export function generateKeepsakeImage(
           ctx.drawImage(mapCanvas, bw, bw)
         }
 
-        restoreRoutes(map, saved)
         resolve(canvas.toDataURL('image/png'))
       } catch (err) {
-        restoreRoutes(map, saved)
         reject(err)
+      } finally {
+        restoreRoutes(map, saved)
       }
     })
   })
@@ -183,7 +184,7 @@ function svgToImage(svgString: string): Promise<HTMLImageElement> {
     const encoded = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)))
     const img = new Image()
     img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('Failed to render seal SVG'))
+    img.onerror = () => reject(new Error('Failed to render SVG to image'))
     img.src = encoded
   })
 }

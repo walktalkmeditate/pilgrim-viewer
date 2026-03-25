@@ -340,6 +340,7 @@ export async function renderSealPanel(
 }
 
 export function buildCombinedWalk(walks: Walk[]): Walk {
+  if (walks.length === 0) throw new Error('buildCombinedWalk requires at least one walk')
   const totalDistance = walks.reduce((s, w) => s + w.stats.distance, 0)
   const totalActiveDuration = walks.reduce((s, w) => s + w.stats.activeDuration, 0)
   const totalMeditateDuration = walks.reduce((s, w) => s + w.stats.meditateDuration, 0)

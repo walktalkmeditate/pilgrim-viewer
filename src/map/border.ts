@@ -6,6 +6,10 @@ import {
 } from '../panels/seal'
 import type { RoutePoint } from '../panels/seal'
 
+function escapeXml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 export const BORDER_WIDTH = 60
 
 export type BorderTheme = 'gold' | 'silver' | 'sepia' | 'forest'
@@ -255,12 +259,12 @@ export function generateBorderStatsText(
     const rest = parts.filter(p => p !== distancePart).join(' \u00B7 ')
 
     return [
-      `<text x="${x}" y="${(baseY - 2).toFixed(1)}" text-anchor="end" font-family="'Cormorant Garamond', Georgia, serif" font-size="18" font-weight="300" fill="${color}" opacity="0.75">${distancePart}</text>`,
-      `<text x="${x}" y="${(baseY + 12).toFixed(1)}" text-anchor="end" font-family="'Lato', -apple-system, sans-serif" font-size="8" fill="${color}" opacity="0.5" letter-spacing="1">${rest}</text>`,
+      `<text x="${x}" y="${(baseY - 2).toFixed(1)}" text-anchor="end" font-family="'Cormorant Garamond', Georgia, serif" font-size="18" font-weight="300" fill="${color}" opacity="0.75">${escapeXml(distancePart)}</text>`,
+      `<text x="${x}" y="${(baseY + 12).toFixed(1)}" text-anchor="end" font-family="'Lato', -apple-system, sans-serif" font-size="8" fill="${color}" opacity="0.5" letter-spacing="1">${escapeXml(rest)}</text>`,
     ].join('\n')
   }
 
-  return `<text x="${x}" y="${baseY}" text-anchor="end" font-family="'Lato', -apple-system, sans-serif" font-size="11" fill="${color}" opacity="0.65" letter-spacing="1">${statsText}</text>`
+  return `<text x="${x}" y="${baseY}" text-anchor="end" font-family="'Lato', -apple-system, sans-serif" font-size="11" fill="${color}" opacity="0.65" letter-spacing="1">${escapeXml(statsText)}</text>`
 }
 
 export function generateRouteGhost(
@@ -418,7 +422,7 @@ export function generateDateRange(
   }
 
   const y = borderWidth / 2 + 4
-  return `<text x="${width / 2}" y="${y}" text-anchor="middle" font-family="'Lato', -apple-system, sans-serif" font-size="10" fill="${color}" opacity="0.45" letter-spacing="3" style="text-transform:uppercase">${text}</text>`
+  return `<text x="${width / 2}" y="${y}" text-anchor="middle" font-family="'Lato', -apple-system, sans-serif" font-size="10" fill="${color}" opacity="0.45" letter-spacing="3" style="text-transform:uppercase">${escapeXml(text)}</text>`
 }
 
 export function generateCompassRose(
@@ -587,7 +591,7 @@ function buildFrameElevationPath(
   return segments.join(' ')
 }
 
-export async function generateBorderSvg(
+export function generateBorderSvg(
   walks: Walk[],
   width: number,
   height: number,
@@ -595,7 +599,7 @@ export async function generateBorderSvg(
   hashHex: string,
   statsText?: string,
   theme: BorderTheme = DEFAULT_THEME,
-): Promise<string> {
+): string {
   const palette = BORDER_THEMES[theme]
   const color = palette.primary
   const bytes = hexToBytes(hashHex)

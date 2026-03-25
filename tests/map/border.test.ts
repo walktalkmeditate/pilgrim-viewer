@@ -193,14 +193,14 @@ describe('generateSeasonBars', () => {
 })
 
 describe('generateBorderSvg', () => {
-  it('produces a complete SVG with all border elements for stats variant', async () => {
+  it('produces a complete SVG with all border elements for stats variant', () => {
     // #given
     const walks = [makeWalk()]
     const hashHex = TEST_HASH
     const statsText = '1 walk · 5.00 km · 1 season'
 
     // #when
-    const svg = await generateBorderSvg(walks, 400, 300, 'metric', hashHex, statsText)
+    const svg = generateBorderSvg(walks, 400, 300, 'metric', hashHex, statsText)
 
     // #then
     expect(svg).toContain('<svg')
@@ -211,20 +211,20 @@ describe('generateBorderSvg', () => {
     expect(svg).toContain('<circle')   // edge dots
   })
 
-  it('omits stats text when statsText is not provided', async () => {
+  it('omits stats text when statsText is not provided', () => {
     // #given
     const walks = [makeWalk()]
     const hashHex = TEST_HASH
 
     // #when
-    const svg = await generateBorderSvg(walks, 400, 300, 'metric', hashHex)
+    const svg = generateBorderSvg(walks, 400, 300, 'metric', hashHex)
 
     // #then
     expect(svg).toContain('<svg')
     expect(svg).not.toContain('Cormorant Garamond')
   })
 
-  it('produces denser elements for multi-walk overlay', async () => {
+  it('produces denser elements for multi-walk overlay', () => {
     // #given
     const walks = Array.from({ length: 25 }, (_, i) =>
       makeWalk({
@@ -234,7 +234,7 @@ describe('generateBorderSvg', () => {
     )
 
     // #when
-    const svg = await generateBorderSvg(walks, 400, 300, 'metric', TEST_HASH, '25 walks')
+    const svg = generateBorderSvg(walks, 400, 300, 'metric', TEST_HASH, '25 walks')
 
     // #then
     const circles = svg.match(/<circle/g) ?? []

@@ -96,7 +96,16 @@ export function showKeepsakeModal(
     if (e.target === overlay) close()
   })
 
+  function onKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Escape') close()
+  }
+  document.addEventListener('keydown', onKeydown)
+
+  modal.setAttribute('role', 'dialog')
+  modal.setAttribute('aria-modal', 'true')
+
   function close(): void {
+    document.removeEventListener('keydown', onKeydown)
     overlay.remove()
   }
 
