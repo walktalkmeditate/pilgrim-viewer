@@ -105,7 +105,7 @@ function drawDepthLayers(ctx: CanvasRenderingContext2D, config: AnimationConfig,
 function drawInnerFrame(ctx: CanvasRenderingContext2D, config: AnimationConfig, progress: number): void {
   if (progress <= 0) return
 
-  const { width, height, bw, palette, elevationPoints, elevXStart, elevXEnd, elevYBaseline, elevMaxAmplitude } = config
+  const { width, height, bw, palette, elevationPoints } = config
   const ix = bw
   const iy = bw
   const iw = width - bw * 2
@@ -353,7 +353,7 @@ function drawEdgeDots(ctx: CanvasRenderingContext2D, config: AnimationConfig, pr
 function drawSealRadials(ctx: CanvasRenderingContext2D, config: AnimationConfig, progress: number): void {
   if (progress <= 0) return
 
-  const { bw, height, palette, bytes, sealSize } = config
+  const { bw, height, palette, bytes } = config
   const sealX = bw
   const sealY = height - bw
   const count = 4 + (bytes[8] % 5)
