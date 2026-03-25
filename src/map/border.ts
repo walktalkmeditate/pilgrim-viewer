@@ -84,6 +84,128 @@ export function generateSeasonBars(
   return bars.join('\n')
 }
 
+export function generateCornerOrnaments(
+  bytes: Uint8Array,
+  width: number,
+  height: number,
+  borderWidth: number,
+  color: string,
+): string {
+  const count = 2 + (bytes[24] % 3)
+  const corners = [
+    { cx: borderWidth, cy: borderWidth },
+    { cx: width - borderWidth, cy: borderWidth },
+    { cx: width - borderWidth, cy: height - borderWidth },
+    { cx: borderWidth, cy: height - borderWidth, reduced: true },
+  ]
+
+  const paths: string[] = []
+
+  for (let c = 0; c < corners.length; c++) {
+    const { cx, cy, reduced } = corners[c] as { cx: number; cy: number; reduced?: boolean }
+    const arcCount = reduced ? Math.max(count - 1, 1) : count
+
+    for (let i = 0; i < arcCount; i++) {
+      const byteIdx = (32 + c * 4 + i) % 32
+      const sweep = 20 + (bytes[byteIdx] / 255) * 60
+      const radius = 8 + (bytes[(byteIdx + 1) % 32] / 255) * (borderWidth * 0.6)
+      const startAngle = (bytes[(byteIdx + 2) % 32] / 255) * 360
+      const opacity = (0.2 + (bytes[(byteIdx + 3) % 32] / 255) * 0.2).toFixed(2)
+
+      const startRad = (startAngle * Math.PI) / 180
+      const endRad = ((startAngle + sweep) * Math.PI) / 180
+
+      const x1 = cx + Math.cos(startRad) * radius
+      const y1 = cy + Math.sin(startRad) * radius
+      const cpx = cx + Math.cos((startRad + endRad) / 2) * radius * 1.3
+      const cpy = cy + Math.sin((startRad + endRad) / 2) * radius * 1.3
+      const x2 = cx + Math.cos(endRad) * radius
+      const y2 = cy + Math.sin(endRad) * radius
+
+      paths.push(
+        `<path d="M${x1.toFixed(1)},${y1.toFixed(1)} Q${cpx.toFixed(1)},${cpy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}" fill="none" stroke="${color}" stroke-width="0.8" opacity="${opacity}" stroke-linecap="round"/>`,
+      )
+    }
+  }
+
+  return paths.join('\n')
+}
+
+export function generateEdgeDots(
+  bytes: Uint8Array,
+  width: number,
+  height: number,
+  borderWidth: number,
+  color: string,
+  walkCount: number,
+): string {
+  const outerMargin = 10
+  const count = Math.min(5 + Math.floor(walkCount / 10), 30)
+  const topCount = Math.ceil(count * 0.6)
+  const rightCount = count - topCount
+
+  const circles: string[] = []
+
+  for (let i = 0; i < topCount; i++) {
+    const byteIdx = (i * 3) % 32
+    const t = i / Math.max(topCount - 1, 1)
+    const xJitter = ((bytes[(byteIdx + 1) % 32] / 255) - 0.5) * 15
+    const x = outerMargin + t * (width - outerMargin * 2) + xJitter
+    const y = outerMargin + (bytes[byteIdx] / 255) * (borderWidth - outerMargin)
+    const r = (1 + (bytes[(byteIdx + 2) % 32] / 255) * 1.5).toFixed(1)
+    const opacity = (0.2 + (bytes[byteIdx] / 255) * 0.25).toFixed(2)
+
+    circles.push(
+      `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${color}" opacity="${opacity}"/>`,
+    )
+  }
+
+  for (let i = 0; i < rightCount; i++) {
+    const byteIdx = (topCount * 3 + i * 3) % 32
+    const t = i / Math.max(rightCount - 1, 1)
+    const yJitter = ((bytes[(byteIdx + 1) % 32] / 255) - 0.5) * 15
+    const y = outerMargin + t * (height - outerMargin * 2) + yJitter
+    const x = width - borderWidth + (bytes[byteIdx] / 255) * (borderWidth - outerMargin)
+    const r = (1 + (bytes[(byteIdx + 2) % 32] / 255) * 1.5).toFixed(1)
+    const opacity = (0.2 + (bytes[byteIdx] / 255) * 0.25).toFixed(2)
+
+    circles.push(
+      `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${color}" opacity="${opacity}"/>`,
+    )
+  }
+
+  return circles.join('\n')
+}
+
+export function generateSealRadials(
+  bytes: Uint8Array,
+  sealX: number,
+  sealY: number,
+  color: string,
+): string {
+  const count = 4 + (bytes[8] % 5)
+  const lines: string[] = []
+
+  for (let i = 0; i < count; i++) {
+    const byteIdx = (8 + i) % 32
+    const angleOffset = (bytes[byteIdx] / 255) * 180
+    const angle = 180 + angleOffset
+    const rad = (angle * Math.PI) / 180
+
+    const length = 30 + (bytes[(byteIdx + 1) % 32] / 255) * 30
+    const opacity = (0.15 + (bytes[(byteIdx + 2) % 32] / 255) * 0.15).toFixed(2)
+
+    const x2 = sealX + Math.cos(rad) * length
+    const y2 = sealY + Math.sin(rad) * length
+
+    lines.push(
+      `<line x1="${sealX.toFixed(1)}" y1="${sealY.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${color}" stroke-width="0.5" opacity="${opacity}" stroke-linecap="round"/>`,
+    )
+  }
+
+  return lines.join('\n')
+}
+
 export function generateFrameLines(
   width: number,
   height: number,

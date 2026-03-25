@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { generateFrameLines, generateLinearElevation, generateSeasonBars } from '../../src/map/border'
+import { generateFrameLines, generateLinearElevation, generateSeasonBars, generateCornerOrnaments, generateEdgeDots, generateSealRadials } from '../../src/map/border'
+import { hexToBytes } from '../../src/panels/seal'
 import type { Walk } from '../../src/parsers/types'
+
+const TEST_HASH = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90'
+const testBytes = hexToBytes(TEST_HASH)
 
 function makeWalk(overrides: Partial<Walk> = {}): Walk {
   return {
@@ -83,6 +87,51 @@ describe('generateLinearElevation', () => {
 
     // #then
     expect(svg).toBe('')
+  })
+})
+
+describe('generateCornerOrnaments', () => {
+  it('produces arc paths for each corner', () => {
+    // #given / #when
+    const svg = generateCornerOrnaments(testBytes, 400, 300, 60, '#C4956A')
+
+    // #then
+    expect(svg).toContain('<path')
+    const paths = svg.match(/<path/g) ?? []
+    expect(paths.length).toBeGreaterThanOrEqual(4) // at least 1 per corner
+  })
+})
+
+describe('generateEdgeDots', () => {
+  it('produces dots scaled to walk count', () => {
+    // #given / #when
+    const svg = generateEdgeDots(testBytes, 400, 300, 60, '#C4956A', 20)
+
+    // #then
+    const circles = svg.match(/<circle/g) ?? []
+    expect(circles.length).toBeGreaterThanOrEqual(5)
+    expect(circles.length).toBeLessThanOrEqual(30)
+  })
+
+  it('caps at 30 dots for large walk counts', () => {
+    // #given / #when
+    const svg = generateEdgeDots(testBytes, 400, 300, 60, '#C4956A', 500)
+
+    // #then
+    const circles = svg.match(/<circle/g) ?? []
+    expect(circles.length).toBeLessThanOrEqual(30)
+  })
+})
+
+describe('generateSealRadials', () => {
+  it('produces line elements radiating from seal position', () => {
+    // #given / #when
+    const svg = generateSealRadials(testBytes, 60, 240, '#C4956A')
+
+    // #then
+    expect(svg).toContain('<line')
+    const lines = svg.match(/<line/g) ?? []
+    expect(lines.length).toBeGreaterThanOrEqual(3)
   })
 })
 
