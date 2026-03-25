@@ -254,6 +254,12 @@ export function createOverlayRenderer(
       el.className = 'waypoint-marker waypoint-marker-overlay'
       el.replaceChildren()
       el.insertAdjacentHTML('afterbegin', svgContent)
+      if (wp.properties.label) {
+        const tip = document.createElement('span')
+        tip.className = 'waypoint-tooltip'
+        tip.textContent = wp.properties.label
+        el.appendChild(tip)
+      }
 
       const coords = wp.geometry.coordinates as [number, number]
       const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })

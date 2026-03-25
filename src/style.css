@@ -1056,13 +1056,15 @@ body {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: rgba(28, 25, 20, 0.7);
-  transition: transform 0.15s, background 0.15s;
+  background: var(--parchment, #F5F0E8);
+  border: 1.5px solid var(--stone, #8B7355);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 
 .waypoint-marker:hover {
   transform: scale(1.2);
-  background: rgba(28, 25, 20, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .waypoint-marker svg {
@@ -1073,12 +1075,14 @@ body {
 .waypoint-marker-overlay {
   width: 24px;
   height: 24px;
+  background: rgba(28, 25, 20, 0.85);
+  border-color: rgba(196, 149, 106, 0.5);
 }
 
 .waypoint-marker-overlay svg {
   width: 14px;
   height: 14px;
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .waypoint-marker .waypoint-tooltip {
@@ -1089,8 +1093,8 @@ body {
   transform: translateX(-50%);
   margin-bottom: 6px;
   padding: 3px 8px;
-  background: rgba(28, 25, 20, 0.9);
-  color: var(--dawn, #C4956A);
+  background: var(--ink, #2C241E);
+  color: var(--parchment, #F5F0E8);
   font-family: var(--font-ui, 'Lato', sans-serif);
   font-size: 0.6875rem;
   white-space: nowrap;
