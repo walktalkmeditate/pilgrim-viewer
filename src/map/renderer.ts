@@ -1,7 +1,7 @@
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Walk, Activity, GeoJSONFeature } from '../parsers/types'
-import { resolveWaypointIcon, createWaypointIconDataUrl } from './waypoint-icons'
+import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
 
 const ACTIVITY_COLORS: Record<Activity['type'], string> = {
   walk: '#7A8B6F',
@@ -53,6 +53,7 @@ export function createMapRenderer(
 
   const activeLayers: string[] = []
   const activeSources: string[] = []
+  const activeMarkers: mapboxgl.Marker[] = []
   let pendingLoadHandler: (() => void) | null = null
 
   function clear(): void {
@@ -62,8 +63,10 @@ export function createMapRenderer(
     for (const sourceId of activeSources) {
       if (map.getSource(sourceId)) map.removeSource(sourceId)
     }
+    for (const m of activeMarkers) m.remove()
     activeLayers.length = 0
     activeSources.length = 0
+    activeMarkers.length = 0
   }
 
   function addSource(id: string, data: GeoJSON.GeoJSON): void {
@@ -169,43 +172,22 @@ export function createMapRenderer(
         (f): f is GeoJSONFeature => f.geometry.type === 'Point' && f.properties.markerType === 'waypoint',
       )
 
-      waypointFeatures.forEach((wp, i) => {
+      for (const wp of waypointFeatures) {
         const icon = resolveWaypointIcon(wp.properties.icon)
-        const imgId = `waypoint-icon-${i}`
-        const sid = `waypoint-source-${i}`
-        const lid = `waypoint-layer-${i}`
+        const svg = getWaypointIconSvg(icon).replace(/currentColor/g, '#8B7355')
 
-        const img = new Image(24, 24)
-        img.onload = () => {
-          if (!map.hasImage(imgId)) map.addImage(imgId, img)
-          addSource(sid, {
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: wp.geometry.coordinates as number[] },
-            properties: { label: wp.properties.label ?? '' },
-          } as GeoJSON.Feature)
-          map.addLayer({
-            id: lid,
-            type: 'symbol',
-            source: sid,
-            layout: {
-              'icon-image': imgId,
-              'icon-size': 1,
-              'icon-allow-overlap': true,
-              'text-field': ['get', 'label'],
-              'text-offset': [0, 1.5],
-              'text-size': 11,
-              'text-optional': true,
-            },
-            paint: {
-              'text-color': '#8B7355',
-              'text-halo-color': '#ffffff',
-              'text-halo-width': 1,
-            },
-          })
-          activeLayers.push(lid)
-        }
-        img.src = createWaypointIconDataUrl(icon, '#8B7355')
-      })
+        const el = document.createElement('div')
+        el.className = 'waypoint-marker'
+        el.replaceChildren()
+        el.insertAdjacentHTML('afterbegin', svg)
+        if (wp.properties.label) el.title = wp.properties.label
+
+        const coords = wp.geometry.coordinates as [number, number]
+        const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+          .setLngLat(coords)
+          .addTo(map)
+        activeMarkers.push(marker)
+      }
 
       const bounds = allCoords.reduce(
         (b, coord) => b.extend(coord as [number, number]),

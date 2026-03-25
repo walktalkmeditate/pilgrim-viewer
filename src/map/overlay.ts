@@ -2,7 +2,7 @@ import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Walk, GeoJSONFeature } from '../parsers/types'
 import { generateStatsText } from './export'
-import { resolveWaypointIcon, createWaypointIconDataUrl } from './waypoint-icons'
+import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
 
 const SEASON_COLORS: Record<string, string> = {
   spring: '#7A8B6F',
@@ -120,6 +120,7 @@ export function createOverlayRenderer(
 
   const activeSourceIds: string[] = []
   const activeLayerIds: string[] = []
+  const activeMarkers: mapboxgl.Marker[] = []
   const activeHandlers: Array<{ event: string; layer: string; handler: () => void }> = []
   let statsBar: HTMLElement | null = null
   let walkClickCallback: ((walk: Walk) => void) | null = null
@@ -141,6 +142,8 @@ export function createOverlayRenderer(
     }
     activeLayerIds.length = 0
     activeSourceIds.length = 0
+    for (const m of activeMarkers) m.remove()
+    activeMarkers.length = 0
   }
 
   function removeStatsBar(): void {
@@ -211,46 +214,25 @@ export function createOverlayRenderer(
       { event: 'mouseleave', layer: lid, handler: leaveHandler },
     )
 
-    const waypoints = walk.route.features.filter(
+    const wpFeatures = walk.route.features.filter(
       (f): f is GeoJSONFeature => f.geometry.type === 'Point' && f.properties.markerType === 'waypoint',
     )
 
-    waypoints.forEach((wp, wi) => {
+    for (const wp of wpFeatures) {
       const icon = resolveWaypointIcon(wp.properties.icon)
-      const imgId = `wp-icon-${index}-${wi}`
-      const wsid = `wp-source-${index}-${wi}`
-      const wlid = `wp-layer-${index}-${wi}`
+      const svgContent = getWaypointIconSvg(icon).replace(/currentColor/g, '#C4956A')
 
-      const img = new Image(24, 24)
-      img.onload = () => {
-        if (!map.hasImage(imgId)) map.addImage(imgId, img)
-        map.addSource(wsid, {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: wp.geometry.coordinates as number[] },
-            properties: { label: wp.properties.label ?? '' },
-          } as GeoJSON.Feature,
-        })
-        activeSourceIds.push(wsid)
+      const el = document.createElement('div')
+      el.className = 'waypoint-marker waypoint-marker-overlay'
+      el.replaceChildren()
+      el.insertAdjacentHTML('afterbegin', svgContent)
 
-        map.addLayer({
-          id: wlid,
-          type: 'symbol',
-          source: wsid,
-          layout: {
-            'icon-image': imgId,
-            'icon-size': 0.8,
-            'icon-allow-overlap': true,
-          },
-          paint: {
-            'icon-opacity': 0.7,
-          },
-        })
-        activeLayerIds.push(wlid)
-      }
-      img.src = createWaypointIconDataUrl(icon, '#C4956A')
-    })
+      const coords = wp.geometry.coordinates as [number, number]
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+        .setLngLat(coords)
+        .addTo(map)
+      activeMarkers.push(marker)
+    }
   }
 
   function fitToAllWalks(walks: Walk[]): void {
