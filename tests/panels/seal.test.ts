@@ -254,6 +254,10 @@ describe('buildCombinedWalk', () => {
     expect(combined.stats.meditateDuration).toBe(1300)
     expect(combined.startDate).toEqual(new Date('2024-03-10T08:00:00Z'))
   })
+
+  it('throws when given an empty array', () => {
+    expect(() => buildCombinedWalk([])).toThrow('requires at least one walk')
+  })
 })
 
 describe('computeWalkHash', () => {

@@ -91,6 +91,7 @@ export function generateSeasonBars(
   yEnd: number,
   seasonColors: Record<string, string> = BORDER_THEMES[DEFAULT_THEME].seasons,
 ): string {
+  if (walks.length === 0) return ''
   const totalHeight = yEnd - yStart
   const seasonCounts: Record<string, number> = {}
 
