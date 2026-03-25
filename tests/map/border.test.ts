@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateFrameLines, generateLinearElevation, generateSeasonBars, generateCornerOrnaments, generateEdgeDots, generateSealRadials, generateBorderStatsText, generateWeatherFilter } from '../../src/map/border'
+import { generateFrameLines, generateLinearElevation, generateSeasonBars, generateCornerOrnaments, generateEdgeDots, generateSealRadials, generateBorderStatsText, generateWeatherFilter, generateBorderSvg } from '../../src/map/border'
 import { hexToBytes } from '../../src/panels/seal'
 import type { Walk } from '../../src/parsers/types'
 
@@ -208,5 +208,55 @@ describe('generateSeasonBars', () => {
     expect(svg).toContain('#A0634B') // autumn
     const lines = (svg.match(/<line/g) ?? [])
     expect(lines.length).toBe(2)
+  })
+})
+
+describe('generateBorderSvg', () => {
+  it('produces a complete SVG with all border elements for stats variant', async () => {
+    // #given
+    const walks = [makeWalk()]
+    const hashHex = TEST_HASH
+    const statsText = '1 walk · 5.00 km · 1 season'
+
+    // #when
+    const svg = await generateBorderSvg(walks, 400, 300, 'stats', 'metric', hashHex, statsText)
+
+    // #then
+    expect(svg).toContain('<svg')
+    expect(svg).toContain('</svg>')
+    expect(svg).toContain('<rect')    // frame lines
+    expect(svg).toContain('<polyline') // elevation trace
+    expect(svg).toContain('1 walk')    // stats text
+    expect(svg).toContain('<filter')   // weather filter
+  })
+
+  it('omits stats text for clean variant', async () => {
+    // #given
+    const walks = [makeWalk()]
+    const hashHex = TEST_HASH
+
+    // #when
+    const svg = await generateBorderSvg(walks, 400, 300, 'clean', 'metric', hashHex)
+
+    // #then
+    expect(svg).toContain('<svg')
+    expect(svg).not.toContain('1 walk')
+  })
+
+  it('produces denser elements for multi-walk overlay', async () => {
+    // #given
+    const walks = Array.from({ length: 25 }, (_, i) =>
+      makeWalk({
+        id: `walk-${i}`,
+        startDate: new Date(2024, i % 12, 15),
+      })
+    )
+
+    // #when
+    const svg = await generateBorderSvg(walks, 400, 300, 'stats', 'metric', TEST_HASH, '25 walks')
+
+    // #then
+    const circles = svg.match(/<circle/g) ?? []
+    expect(circles.length).toBeGreaterThan(5) // scaled dots
   })
 })

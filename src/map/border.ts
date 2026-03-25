@@ -1,10 +1,12 @@
 import type { Walk } from '../parsers/types'
 import type { UnitSystem } from '../parsers/units'
 import {
-  computeWalkHash, hexToBytes, extractRoutePoints, buildCombinedWalk,
+  hexToBytes, extractRoutePoints,
   getSeason, getWeatherTurbulence, COLORS,
 } from '../panels/seal'
 import type { RoutePoint } from '../panels/seal'
+
+export const BORDER_WIDTH = 60
 
 const BORDER_COLOR = COLORS.dawn
 
@@ -246,5 +248,65 @@ export function generateFrameLines(
   return [
     `<rect x="${outerMargin}" y="${outerMargin}" width="${outerW}" height="${outerH}" rx="3" fill="none" stroke="${color}" stroke-width="0.8" opacity="0.25"/>`,
     `<rect x="${innerX}" y="${innerY}" width="${innerW}" height="${innerH}" rx="2" fill="none" stroke="${color}" stroke-width="1.2" opacity="0.5"/>`,
+  ].join('\n')
+}
+
+export async function generateBorderSvg(
+  walks: Walk[],
+  width: number,
+  height: number,
+  variant: 'stats' | 'clean',
+  unit: UnitSystem,
+  hashHex: string,
+  statsText?: string,
+): Promise<string> {
+  const bytes = hexToBytes(hashHex)
+  const allRoutePoints = walks.flatMap(extractRoutePoints)
+  const earliestWalk = walks.reduce<Walk | undefined>(
+    (earliest, walk) => (!earliest || walk.startDate < earliest.startDate ? walk : earliest),
+    undefined,
+  )
+  const weatherCondition = earliestWalk?.weather?.condition
+
+  const sealX = BORDER_WIDTH
+  const sealY = height - BORDER_WIDTH
+  const elevXStart = sealX + 80
+  const elevXEnd = width - BORDER_WIDTH
+  const elevYBaseline = height - BORDER_WIDTH / 2
+  const elevMaxAmplitude = BORDER_WIDTH * 0.3
+  const seasonBarX = BORDER_WIDTH / 2
+  const seasonBarYStart = BORDER_WIDTH + 8
+  const seasonBarYEnd = height - BORDER_WIDTH - 8
+
+  const elevationTraces = walks.map((walk, i) => {
+    const points = extractRoutePoints(walk)
+    const opacity = walks.length === 1 ? 0.35 : Math.max(0.1, 0.35 - i * (0.25 / walks.length))
+    return generateLinearElevation(points, elevXStart, elevXEnd, elevYBaseline, elevMaxAmplitude, BORDER_COLOR, opacity)
+  })
+
+  const filteredElements = [
+    generateFrameLines(width, height, BORDER_WIDTH, BORDER_COLOR),
+    generateSeasonBars(walks, height, seasonBarX, seasonBarYStart, seasonBarYEnd),
+    generateCornerOrnaments(bytes, width, height, BORDER_WIDTH, BORDER_COLOR),
+    generateEdgeDots(bytes, width, height, BORDER_WIDTH, BORDER_COLOR, walks.length),
+    generateSealRadials(bytes, sealX, sealY, BORDER_COLOR),
+    ...elevationTraces,
+  ].filter(Boolean).join('\n')
+
+  const elements: string[] = [
+    `<defs>\n${generateWeatherFilter(weatherCondition, 'border-weather')}\n</defs>`,
+    `<g filter="url(#border-weather)">`,
+    filteredElements,
+    `</g>`,
+  ]
+
+  if (variant === 'stats') {
+    elements.push(generateBorderStatsText(statsText, width, height - BORDER_WIDTH / 2 + 16, BORDER_COLOR))
+  }
+
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
+    ...elements,
+    `</svg>`,
   ].join('\n')
 }
