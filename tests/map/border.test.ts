@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateFrameLines, generateLinearElevation, generateSeasonBars, generateCornerOrnaments, generateEdgeDots, generateSealRadials } from '../../src/map/border'
+import { generateFrameLines, generateLinearElevation, generateSeasonBars, generateCornerOrnaments, generateEdgeDots, generateSealRadials, generateBorderStatsText, generateWeatherFilter } from '../../src/map/border'
 import { hexToBytes } from '../../src/panels/seal'
 import type { Walk } from '../../src/parsers/types'
 
@@ -132,6 +132,49 @@ describe('generateSealRadials', () => {
     expect(svg).toContain('<line')
     const lines = svg.match(/<line/g) ?? []
     expect(lines.length).toBeGreaterThanOrEqual(3)
+  })
+})
+
+describe('generateBorderStatsText', () => {
+  it('produces centered text element with stats', () => {
+    // #given
+    const statsText = '12 walks · 48.3 km · 3 seasons'
+
+    // #when
+    const svg = generateBorderStatsText(statsText, 400, 280, '#C4956A')
+
+    // #then
+    expect(svg).toContain('<text')
+    expect(svg).toContain('12 walks')
+    expect(svg).toContain('text-anchor="middle"')
+  })
+
+  it('returns empty string when statsText is undefined', () => {
+    // #when
+    const svg = generateBorderStatsText(undefined, 400, 280, '#C4956A')
+
+    // #then
+    expect(svg).toBe('')
+  })
+})
+
+describe('generateWeatherFilter', () => {
+  it('produces SVG filter with turbulence for rain', () => {
+    // #when
+    const svg = generateWeatherFilter('rain', 'border-weather')
+
+    // #then
+    expect(svg).toContain('<filter')
+    expect(svg).toContain('feTurbulence')
+    expect(svg).toContain('0.06') // rain frequency
+  })
+
+  it('uses default turbulence when condition is undefined', () => {
+    // #when
+    const svg = generateWeatherFilter(undefined, 'border-weather')
+
+    // #then
+    expect(svg).toContain('0.04') // default frequency
   })
 })
 

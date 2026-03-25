@@ -206,6 +206,29 @@ export function generateSealRadials(
   return lines.join('\n')
 }
 
+export function generateBorderStatsText(
+  statsText: string | undefined,
+  width: number,
+  y: number,
+  color: string,
+): string {
+  if (!statsText) return ''
+  return `<text x="${width / 2}" y="${y}" text-anchor="middle" font-family="'Lato', -apple-system, sans-serif" font-size="8" fill="${color}" opacity="0.55">${statsText}</text>`
+}
+
+export function generateWeatherFilter(
+  condition: string | undefined,
+  filterId: string,
+): string {
+  const params = getWeatherTurbulence(condition)
+  return [
+    `<filter id="${filterId}">`,
+    `  <feTurbulence type="turbulence" baseFrequency="${params.freq}" numOctaves="${params.octaves}" seed="42"/>`,
+    `  <feDisplacementMap in="SourceGraphic" scale="${params.scale}"/>`,
+    `</filter>`,
+  ].join('\n')
+}
+
 export function generateFrameLines(
   width: number,
   height: number,
