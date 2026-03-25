@@ -4,6 +4,40 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-03-25
+
+### Added
+- Generative keepsake border with 10+ data-driven decorative elements (frame lines, depth shadow, elevation ridgeline, season bars, corner ornaments, edge dots, seal radials, tally marks, date range, compass rose, walk signature, route ghost)
+- Animated keepsake video export — 4-second Canvas 2D animation recorded as WebM/MP4 via browser-native MediaRecorder
+- Image/Moment toggle in keepsake preview modal with live theme switching
+- 4 color themes for keepsakes: gold, silver, sepia, forest
+- Waypoint icons on map routes — 7 SVG icon types (leaf, eye, heart, seated figure, sparkles, flag, mappin)
+- Waypoint tooltips on hover, emotion journey dotted line connecting waypoints
+- Waypoint timeline panel in sidebar with distance-from-start
+- Waypoint icons rendered in keepsake exports
+- 3D terrain toggle on both single-walk and overlay maps (Mapbox DEM)
+- Walk signature glyph — longest walk's route as abstract stroke in border
+- Compass rose with hash-driven decorative lines
+- "Generate Keepsake" button with shimmer animation
+- Sample data updated with waypoints across all 3 pilgrimages (34 total)
+- SVG text escaping utility for injection prevention in border elements
+
+### Fixed
+- Waypoint markers adapt to light/dark map context (cream on light, dark on overlay)
+- 3D terrain resets when switching between list/overlay views
+- Keepsake modal supports Escape key and ARIA dialog attributes
+- Route restoration uses finally block in export pipeline
+- Empty walks guard on buildCombinedWalk and generateKeepsakeVideo
+- Safari compatibility for animated keepsake (video/mp4 fallback)
+- Abort safety in video generation (no double-rejection, state-guarded recorder.stop)
+
+### Changed
+- Replaced dual export buttons with single "Generate Keepsake" button and preview modal
+- Keepsake filenames include walk count and unique suffix
+- Exported svgToImage as shared utility
+- Extracted buildCombinedWalk from seal.ts for reuse
+- 165 tests across 10 test files
+
 ## [1.0.1] - 2026-03-24
 
 ### Added
