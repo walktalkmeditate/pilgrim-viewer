@@ -22,10 +22,10 @@ function overshoot(t: number): number {
 }
 
 interface AnimationConfig {
-  width: number
-  height: number
+  width: number   // CSS pixels (used for drawing with ctx.scale(dpr))
+  height: number  // CSS pixels
   dpr: number
-  bw: number
+  bw: number      // CSS pixels (BORDER_WIDTH, NOT multiplied by dpr)
   palette: BorderPalette
   bytes: Uint8Array
   mapSnapshot: HTMLImageElement | HTMLCanvasElement
@@ -448,12 +448,12 @@ function drawStatsText(ctx: CanvasRenderingContext2D, config: AnimationConfig, o
 
     ctx.globalAlpha = 0.5 * opacity
     ctx.font = '10px "Lato", -apple-system, sans-serif'
-    ctx.letterSpacing = '1px'
+    // letterSpacing not supported in all browsers, skip
     ctx.fillText(rest, x, baseY + 12)
   } else {
     ctx.globalAlpha = 0.65 * opacity
     ctx.font = '11px "Lato", -apple-system, sans-serif'
-    ctx.letterSpacing = '1px'
+    // letterSpacing not supported in all browsers, skip
     ctx.fillText(statsText, x, baseY)
   }
 
@@ -473,7 +473,7 @@ function drawDateRange(ctx: CanvasRenderingContext2D, config: AnimationConfig, o
   ctx.fillStyle = palette.primary
   ctx.globalAlpha = 0.45 * opacity
   ctx.font = '10px "Lato", -apple-system, sans-serif'
-  ctx.letterSpacing = '3px'
+  // letterSpacing not supported in all browsers, skip
   ctx.fillText(dateRangeText.toUpperCase(), width / 2, y)
   ctx.restore()
 }
@@ -664,8 +664,8 @@ function drawRouteCalligraphy(ctx: CanvasRenderingContext2D, config: AnimationCo
 
       ctx.lineWidth = width
       ctx.beginPath()
-      ctx.moveTo(bw + prev.x * dpr, bw + prev.y * dpr)
-      ctx.lineTo(bw + cur.x * dpr, bw + cur.y * dpr)
+      ctx.moveTo(bw + prev.x, bw + prev.y)
+      ctx.lineTo(bw + cur.x, bw + cur.y)
       ctx.stroke()
 
       segmentsSoFar++
@@ -685,9 +685,9 @@ function drawWaypointIcons(ctx: CanvasRenderingContext2D, config: AnimationConfi
     if (!wp.image) continue
 
     const fadeIn = Math.min((routeProgress - wp.progress) * 10, 1)
-    const iconSize = Math.round(20 * dpr)
-    const x = bw + wp.x * dpr - iconSize / 2
-    const y = bw + wp.y * dpr - iconSize / 2
+    const iconSize = 20
+    const x = bw + wp.x - iconSize / 2
+    const y = bw + wp.y - iconSize / 2
 
     ctx.globalAlpha = 0.85 * fadeIn
     ctx.drawImage(wp.image, x, y, iconSize, iconSize)
@@ -718,7 +718,7 @@ function drawAnimationFrame(ctx: CanvasRenderingContext2D, frame: number, config
   const mapOpacity = easeOut(progress(20, 35))
   if (mapOpacity > 0) {
     ctx.globalAlpha = mapOpacity
-    ctx.drawImage(config.mapSnapshot, bw, bw)
+    ctx.drawImage(config.mapSnapshot, bw, bw, config.width - bw * 2, config.height - bw * 2)
     ctx.globalAlpha = 1
   }
 
@@ -926,10 +926,11 @@ export function generateKeepsakeVideo(
       .then(async (hashHex) => {
         const bytes = hexToBytes(hashHex)
 
-        const sealSize = Math.round(150 * dpr)
+        const sealSizeCss = 150
+        const sealSizeDevice = Math.round(sealSizeCss * dpr)
         let sealImage: HTMLImageElement | null = null
         try {
-          const sealSvg = await generateCombinedSealSVG(walks, sealSize, unit, hashHex)
+          const sealSvg = await generateCombinedSealSVG(walks, sealSizeDevice, unit, hashHex)
           if (sealSvg) {
             sealImage = await svgToImage(sealSvg)
           }
@@ -1030,15 +1031,15 @@ export function generateKeepsakeVideo(
         const dateRangeText = computeDateRangeText(walks)
 
         const config: AnimationConfig = {
-          width: canvasWidth,
-          height: canvasHeight,
+          width: cssWidth,
+          height: cssHeight,
           dpr,
-          bw,
+          bw: bwCss,
           palette,
           bytes,
           mapSnapshot: snapshotCanvas,
           sealImage,
-          sealSize,
+          sealSize: sealSizeCss,
           walks,
           statsText,
           routeProjections,
@@ -1066,11 +1067,13 @@ export function generateKeepsakeVideo(
         const canvas = document.createElement('canvas')
         canvas.width = canvasWidth
         canvas.height = canvasHeight
-        const ctx = canvas.getContext('2d')
-        if (!ctx) {
+        const rawCtx = canvas.getContext('2d')
+        if (!rawCtx) {
           reject(new Error('Failed to create animation canvas context'))
           return
         }
+        rawCtx.scale(dpr, dpr)
+        const ctx: CanvasRenderingContext2D = rawCtx
 
         const mimeType = chooseMimeType()
         const stream = canvas.captureStream(0)
@@ -1121,7 +1124,7 @@ export function generateKeepsakeVideo(
 
           lastFrameTime = timestamp - (elapsed % frameDuration)
 
-          drawAnimationFrame(ctx!, currentFrame, config)
+          drawAnimationFrame(ctx, currentFrame, config)
 
           // requestFrame exists on CanvasCapture tracks but is not in all TS lib defs
           if ('requestFrame' in track) {
