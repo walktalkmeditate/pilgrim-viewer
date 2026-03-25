@@ -617,8 +617,8 @@ export function generateBorderSvg(
   const elevXEnd = width - bw
   const frameElevYBaseline = iy + ih
   const frameElevAmplitude = bw * 0.45
-  const traceElevYBaseline = height - bw / 2 + 5
-  const traceElevAmplitude = bw * 0.3
+  const traceElevYBaseline = iy + ih - 8
+  const traceElevAmplitude = bw * 0.35
   const seasonBarX = bw / 2
   const seasonBarYStart = bw + 15
   const seasonBarYEnd = height - bw - 15
