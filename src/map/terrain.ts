@@ -8,7 +8,7 @@ const FLAT_PITCH = 0
 export function createTerrainToggle(
   map: mapboxgl.Map,
   container: HTMLElement,
-): { destroy(): void } {
+): { destroy(): void; reset(): void } {
   let enabled = false
 
   const btn = document.createElement('button')
@@ -53,7 +53,11 @@ export function createTerrainToggle(
   })
 
   return {
+    reset(): void {
+      if (enabled) disable()
+    },
     destroy(): void {
+      if (enabled) disable()
       btn.remove()
     },
   }

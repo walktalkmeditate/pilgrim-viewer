@@ -61,6 +61,7 @@ export function createMapRenderer(
   let pendingLoadHandler: (() => void) | null = null
 
   function clear(): void {
+    terrainCtrl.reset()
     for (const layerId of activeLayers) {
       if (map.getLayer(layerId)) map.removeLayer(layerId)
     }

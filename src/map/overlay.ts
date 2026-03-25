@@ -134,6 +134,7 @@ export function createOverlayRenderer(
   let selectedYear: number | null = null
 
   function removeSourcesAndLayers(): void {
+    terrainCtrl.reset()
     for (const { event, layer, handler } of activeHandlers) {
       map.off(event as 'click', layer, handler)
     }
