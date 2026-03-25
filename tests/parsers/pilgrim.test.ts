@@ -29,7 +29,7 @@ describe('parsePilgrimWalkJSON', () => {
     expect(walk.stats.talkDuration).toBe(180)
     expect(walk.stats.meditateDuration).toBe(300)
     expect(walk.route.type).toBe('FeatureCollection')
-    expect(walk.route.features).toHaveLength(1)
+    expect(walk.route.features).toHaveLength(3)
     expect(walk.weather).toEqual({
       temperature: 18.5,
       condition: 'partly_cloudy',

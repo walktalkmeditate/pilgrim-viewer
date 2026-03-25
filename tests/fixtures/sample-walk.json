@@ -45,6 +45,16 @@
             1710003600
           ]
         }
+      },
+      {
+        "type": "Feature",
+        "geometry": { "type": "Point", "coordinates": [-8.5130, 42.8860] },
+        "properties": { "markerType": "waypoint", "label": "Peaceful", "icon": "leaf", "timestamp": 1710000720 }
+      },
+      {
+        "type": "Feature",
+        "geometry": { "type": "Point", "coordinates": [-8.5190, 42.8840] },
+        "properties": { "markerType": "waypoint", "label": "Grateful", "icon": "heart", "timestamp": 1710002160 }
       }
     ]
   },
