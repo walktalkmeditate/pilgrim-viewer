@@ -4,7 +4,8 @@ import type { ColorMode } from './overlay'
 import type { UnitSystem } from '../parsers/units'
 import { formatDistance } from '../parsers/units'
 import { getDominantTimeBucket } from './overlay'
-import { generateCombinedSealSVG } from '../panels/seal'
+import { generateCombinedSealSVG, buildCombinedWalk, computeWalkHash, extractRoutePoints } from '../panels/seal'
+import { generateBorderSvg, BORDER_WIDTH } from './border'
 
 export function generateFilename(
   variant: 'stats' | 'clean',
@@ -40,14 +41,8 @@ export function generateStatsText(
   return `${prefix}${count} walk${count !== 1 ? 's' : ''} \u00B7 ${distance} \u00B7 ${detail}`
 }
 
-const FOOTER_HEIGHT = 80
-const FOOTER_BG = '#1C1914'
-const FOOTER_TEXT_COLOR = '#F0EBE1'
-const FOOTER_FONT_SIZE = 16
-const FOOTER_FONT = 'Lato, Helvetica Neue, sans-serif'
 const EXPORT_LINE_WIDTH = 3
 const EXPORT_LINE_OPACITY = 0.85
-const PADDING = 40
 
 function boostRoutes(map: mapboxgl.Map): Array<{ id: string; width: number; opacity: number }> {
   const saved: Array<{ id: string; width: number; opacity: number }> = []
@@ -85,40 +80,61 @@ export function exportWithStats(
   const saved = boostRoutes(map)
   map.triggerRepaint()
 
-  requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
     const mapCanvas = map.getCanvas()
     const width = mapCanvas.width
     const height = mapCanvas.height
     const dpr = window.devicePixelRatio || 1
-    const footerH = FOOTER_HEIGHT * dpr
-    const pad = PADDING * dpr
+    const bw = BORDER_WIDTH * dpr
 
     const canvas = document.createElement('canvas')
-    canvas.width = width + pad * 2
-    canvas.height = height + pad * 2 + footerH
+    canvas.width = width + bw * 2
+    canvas.height = height + bw * 2
 
     const ctx = canvas.getContext('2d')
     if (!ctx) { restoreRoutes(map, saved); return }
 
-    ctx.fillStyle = FOOTER_BG
+    ctx.fillStyle = '#1C1914'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.drawImage(mapCanvas, pad, pad)
-
-    ctx.fillStyle = FOOTER_TEXT_COLOR
-    ctx.font = `${FOOTER_FONT_SIZE * dpr}px ${FOOTER_FONT}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(statsText, canvas.width / 2, height + pad * 2 + footerH / 2)
-
-    restoreRoutes(map, saved)
 
     if (walks.length > 0) {
-      compositeSeal(ctx, canvas.width, height + pad * 2, walks, unit, dpr).finally(() => {
-        triggerDownload(canvas.toDataURL('image/png'), filename)
-      })
+      try {
+        const combined = buildCombinedWalk(walks)
+        const allRoutePoints = walks.flatMap(extractRoutePoints)
+        const hashHex = await computeWalkHash(combined, allRoutePoints)
+
+        const borderSvg = await generateBorderSvg(
+          walks, canvas.width / dpr, canvas.height / dpr,
+          'stats', unit, hashHex, statsText,
+        )
+        const borderImg = await svgToImage(borderSvg)
+        ctx.drawImage(borderImg, 0, 0, canvas.width, canvas.height)
+
+        ctx.drawImage(mapCanvas, bw, bw)
+
+        const sealSize = Math.round(150 * dpr)
+        const sealSvg = await generateCombinedSealSVG(walks, sealSize, unit, hashHex)
+        if (sealSvg) {
+          const sealImg = await svgToImage(sealSvg)
+          ctx.globalAlpha = 0.65
+          ctx.drawImage(
+            sealImg,
+            bw - sealSize / 2,
+            canvas.height - bw - sealSize / 2,
+            sealSize, sealSize,
+          )
+          ctx.globalAlpha = 1.0
+        }
+      } catch (err) {
+        console.warn('Border/seal compositing failed:', err)
+        ctx.drawImage(mapCanvas, bw, bw)
+      }
     } else {
-      triggerDownload(canvas.toDataURL('image/png'), filename)
+      ctx.drawImage(mapCanvas, bw, bw)
     }
+
+    restoreRoutes(map, saved)
+    triggerDownload(canvas.toDataURL('image/png'), filename)
   })
 }
 
@@ -132,33 +148,61 @@ export function exportClean(
   const saved = boostRoutes(map)
   map.triggerRepaint()
 
-  requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
     const mapCanvas = map.getCanvas()
     const width = mapCanvas.width
     const height = mapCanvas.height
     const dpr = window.devicePixelRatio || 1
-    const pad = PADDING * dpr
+    const bw = BORDER_WIDTH * dpr
 
     const canvas = document.createElement('canvas')
-    canvas.width = width + pad * 2
-    canvas.height = height + pad * 2
+    canvas.width = width + bw * 2
+    canvas.height = height + bw * 2
 
     const ctx = canvas.getContext('2d')
     if (!ctx) { restoreRoutes(map, saved); return }
 
     ctx.fillStyle = '#1C1914'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.drawImage(mapCanvas, pad, pad)
-
-    restoreRoutes(map, saved)
 
     if (walks.length > 0) {
-      compositeSeal(ctx, canvas.width, canvas.height, walks, unit, dpr).finally(() => {
-        triggerDownload(canvas.toDataURL('image/png'), filename)
-      })
+      try {
+        const combined = buildCombinedWalk(walks)
+        const allRoutePoints = walks.flatMap(extractRoutePoints)
+        const hashHex = await computeWalkHash(combined, allRoutePoints)
+
+        const borderSvg = await generateBorderSvg(
+          walks, canvas.width / dpr, canvas.height / dpr,
+          'clean', unit, hashHex,
+        )
+        const borderImg = await svgToImage(borderSvg)
+        ctx.drawImage(borderImg, 0, 0, canvas.width, canvas.height)
+
+        ctx.drawImage(mapCanvas, bw, bw)
+
+        const sealSize = Math.round(150 * dpr)
+        const sealSvg = await generateCombinedSealSVG(walks, sealSize, unit, hashHex)
+        if (sealSvg) {
+          const sealImg = await svgToImage(sealSvg)
+          ctx.globalAlpha = 0.65
+          ctx.drawImage(
+            sealImg,
+            bw - sealSize / 2,
+            canvas.height - bw - sealSize / 2,
+            sealSize, sealSize,
+          )
+          ctx.globalAlpha = 1.0
+        }
+      } catch (err) {
+        console.warn('Border/seal compositing failed:', err)
+        ctx.drawImage(mapCanvas, bw, bw)
+      }
     } else {
-      triggerDownload(canvas.toDataURL('image/png'), filename)
+      ctx.drawImage(mapCanvas, bw, bw)
     }
+
+    restoreRoutes(map, saved)
+    triggerDownload(canvas.toDataURL('image/png'), filename)
   })
 }
 
@@ -179,26 +223,4 @@ function svgToImage(svgString: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error('Failed to render seal SVG'))
     img.src = encoded
   })
-}
-
-async function compositeSeal(
-  ctx: CanvasRenderingContext2D,
-  canvasWidth: number,
-  canvasHeight: number,
-  walks: Walk[],
-  unit: UnitSystem,
-  dpr: number,
-): Promise<void> {
-  try {
-    const sealSize = Math.round(150 * dpr)
-    const svg = await generateCombinedSealSVG(walks, sealSize, unit)
-    if (!svg) return
-    const img = await svgToImage(svg)
-    const margin = Math.round(24 * dpr)
-    ctx.globalAlpha = 0.5
-    ctx.drawImage(img, margin, canvasHeight - sealSize - margin, sealSize, sealSize)
-    ctx.globalAlpha = 1.0
-  } catch (err) {
-    console.warn('Seal compositing failed:', err)
-  }
 }
