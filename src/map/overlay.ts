@@ -218,6 +218,34 @@ export function createOverlayRenderer(
       (f): f is GeoJSONFeature => f.geometry.type === 'Point' && f.properties.markerType === 'waypoint',
     )
 
+    if (wpFeatures.length >= 2) {
+      const wpCoords = wpFeatures.map(f => f.geometry.coordinates as number[])
+      const ejSid = `emotion-source-${index}`
+      const ejLid = `emotion-layer-${index}`
+      map.addSource(ejSid, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: wpCoords },
+          properties: {},
+        } as GeoJSON.Feature,
+      })
+      activeSourceIds.push(ejSid)
+      map.addLayer({
+        id: ejLid,
+        type: 'line',
+        source: ejSid,
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#C4956A',
+          'line-width': 1,
+          'line-opacity': 0.2,
+          'line-dasharray': [3, 4],
+        },
+      })
+      activeLayerIds.push(ejLid)
+    }
+
     for (const wp of wpFeatures) {
       const icon = resolveWaypointIcon(wp.properties.icon)
       const svgContent = getWaypointIconSvg(icon).replace(/currentColor/g, '#C4956A')

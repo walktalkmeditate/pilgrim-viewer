@@ -8,6 +8,7 @@ import { renderIntentionPanel } from '../panels/intention'
 import { renderWeatherPanel } from '../panels/weather'
 import { renderTranscriptionsPanel } from '../panels/transcriptions'
 import { renderCelestialPanel } from '../panels/celestial'
+import { renderWaypointsPanel } from '../panels/waypoints'
 import { formatDistance, formatDuration } from '../parsers/units'
 import { getWalkColor } from '../map/overlay'
 import type { ColorMode } from '../map/overlay'
@@ -198,6 +199,7 @@ export function renderPanels(
   renderSealPanel(sealContainer, walk, unit)
 
   renderStatsPanel(panelsContent, walk, unit)
+  renderWaypointsPanel(panelsContent, walk, unit)
   renderElevationPanel(panelsContent, walk, unit)
   renderTimelinePanel(panelsContent, walk)
   renderIntentionPanel(panelsContent, walk)

@@ -172,6 +172,28 @@ export function createMapRenderer(
         (f): f is GeoJSONFeature => f.geometry.type === 'Point' && f.properties.markerType === 'waypoint',
       )
 
+      if (waypointFeatures.length >= 2) {
+        const wpCoords = waypointFeatures.map(f => f.geometry.coordinates as number[])
+        addSource('emotion-journey-source', {
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: wpCoords },
+          properties: {},
+        } as GeoJSON.Feature)
+        map.addLayer({
+          id: 'emotion-journey-layer',
+          type: 'line',
+          source: 'emotion-journey-source',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: {
+            'line-color': '#C4956A',
+            'line-width': 1.5,
+            'line-opacity': 0.3,
+            'line-dasharray': [3, 4],
+          },
+        })
+        activeLayers.push('emotion-journey-layer')
+      }
+
       for (const wp of waypointFeatures) {
         const icon = resolveWaypointIcon(wp.properties.icon)
         const svg = getWaypointIconSvg(icon).replace(/currentColor/g, '#8B7355')
@@ -180,7 +202,12 @@ export function createMapRenderer(
         el.className = 'waypoint-marker'
         el.replaceChildren()
         el.insertAdjacentHTML('afterbegin', svg)
-        if (wp.properties.label) el.title = wp.properties.label
+        if (wp.properties.label) {
+          const tip = document.createElement('span')
+          tip.className = 'waypoint-tooltip'
+          tip.textContent = wp.properties.label
+          el.appendChild(tip)
+        }
 
         const coords = wp.geometry.coordinates as [number, number]
         const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })

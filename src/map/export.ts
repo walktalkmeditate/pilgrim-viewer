@@ -7,6 +7,8 @@ import { getDominantTimeBucket } from './overlay'
 import { generateCombinedSealSVG, buildCombinedWalk, computeWalkHash, extractRoutePoints } from '../panels/seal'
 import { generateBorderSvg, BORDER_WIDTH, BORDER_THEMES } from './border'
 import type { BorderTheme } from './border'
+import type { GeoJSONFeature } from '../parsers/types'
+import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
 
 export function generateFilename(
   selectedYear: number | null,
@@ -129,6 +131,30 @@ export function exportKeepsake(
             sealSize, sealSize,
           )
           ctx.globalAlpha = 1.0
+        }
+
+        const allWaypoints = walks.flatMap(w =>
+          w.route.features.filter(
+            (f): f is GeoJSONFeature => f.geometry.type === 'Point' && f.properties.markerType === 'waypoint',
+          ),
+        )
+
+        for (const wp of allWaypoints) {
+          const coords = wp.geometry.coordinates as [number, number]
+          const pixel = map.project(coords)
+          const icon = resolveWaypointIcon(wp.properties.icon)
+          const svgStr = getWaypointIconSvg(icon).replace(/currentColor/g, palette.primary)
+          try {
+            const iconImg = await svgToImage(svgStr)
+            const iconSize = Math.round(20 * dpr)
+            const x = bw + pixel.x * dpr - iconSize / 2
+            const y = bw + pixel.y * dpr - iconSize / 2
+            ctx.globalAlpha = 0.85
+            ctx.drawImage(iconImg, x, y, iconSize, iconSize)
+            ctx.globalAlpha = 1.0
+          } catch {
+            // skip failed icon
+          }
         }
       } catch (err) {
         console.warn('Border/seal compositing failed:', err)
