@@ -615,18 +615,20 @@ export function generateBorderSvg(
   const ih = height - bw * 2
   const elevXStart = sealX + 80
   const elevXEnd = width - bw
-  const elevYBaseline = iy + ih
-  const elevMaxAmplitude = bw * 0.45
+  const frameElevYBaseline = iy + ih
+  const frameElevAmplitude = bw * 0.45
+  const traceElevYBaseline = height - bw / 2 + 5
+  const traceElevAmplitude = bw * 0.3
   const seasonBarX = bw / 2
   const seasonBarYStart = bw + 15
   const seasonBarYEnd = height - bw - 15
 
-  const frameElevationPoints = buildFrameElevationPath(allRoutePoints, elevXStart, elevXEnd, elevYBaseline, elevMaxAmplitude, ix, iw)
+  const frameElevationPoints = buildFrameElevationPath(allRoutePoints, elevXStart, elevXEnd, frameElevYBaseline, frameElevAmplitude, ix, iw)
 
   const elevationTraces = walks.map((walk, i) => {
     const points = extractRoutePoints(walk)
     const opacity = walks.length === 1 ? 0.5 : Math.max(0.15, 0.5 - i * (0.35 / walks.length))
-    return generateLinearElevation(points, elevXStart, elevXEnd, elevYBaseline, elevMaxAmplitude, color, opacity)
+    return generateLinearElevation(points, elevXStart, elevXEnd, traceElevYBaseline, traceElevAmplitude, color, opacity)
   })
 
   const compassCx = width - bw / 2
