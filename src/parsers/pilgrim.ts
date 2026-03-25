@@ -289,7 +289,7 @@ export function parsePilgrimWalkJSON(raw: any): Walk {
 
 export async function parsePilgrim(
   buffer: ArrayBuffer
-): Promise<{ manifest: PilgrimManifest; walks: Walk[] }> {
+): Promise<{ manifest: PilgrimManifest; walks: Walk[]; rawWalks: unknown[] }> {
   let zip: JSZip
 
   try {
@@ -320,14 +320,16 @@ export async function parsePilgrim(
 
   const walkFiles = zip.file(/^walks\/.*\.json$/)
   const walks: Walk[] = []
+  const rawWalks: unknown[] = []
 
   for (const file of walkFiles) {
     const text = await file.async('text')
     const walkRaw = JSON.parse(text)
+    rawWalks.push(walkRaw)
     walks.push(parsePilgrimWalkJSON(walkRaw))
   }
 
   walks.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
 
-  return { manifest, walks }
+  return { manifest, walks, rawWalks }
 }

@@ -23,6 +23,7 @@ import type { Walk, PilgrimManifest, PilgrimPreferences } from './parsers/types'
 const app = document.getElementById('app')!
 
 let currentWalks: Walk[] = []
+let currentRawWalks: unknown[] = []
 let currentManifest: PilgrimManifest | undefined
 let activeMapRenderer: ReturnType<typeof createMapRenderer> | null = null
 let activeOverlayRenderer: ReturnType<typeof createOverlayRenderer> | null = null
@@ -30,6 +31,14 @@ let currentUnit: UnitSystem = resolveInitialUnit()
 let activeDropZone: { stop: () => void } | null = null
 
 activeDropZone = createDropZone(app, handleFile)
+
+window.addEventListener('pilgrimdatarequest', () => {
+  if (currentWalks.length > 0 && currentWalks[0].source === 'pilgrim') {
+    window.dispatchEvent(new CustomEvent('pilgrimdataresponse', {
+      detail: { walks: currentWalks, rawWalks: currentRawWalks, manifest: currentManifest },
+    }))
+  }
+})
 
 interface PilgrimViewerAPI {
   loadData(data: {
@@ -78,7 +87,9 @@ function goHome(): void {
   if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
   if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
   currentWalks = []
+  currentRawWalks = []
   currentManifest = undefined
+  window.dispatchEvent(new CustomEvent('pilgrimdataclear'))
   app.textContent = ''
   activeDropZone = createDropZone(app, handleFile)
 }
@@ -88,15 +99,23 @@ async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
     if (name.endsWith('.pilgrim')) {
       const result = await parsePilgrim(buffer)
       currentWalks = result.walks
+      currentRawWalks = result.rawWalks
       currentManifest = result.manifest
     } else {
       const text = new TextDecoder().decode(buffer)
       currentWalks = parseGPX(text)
+      currentRawWalks = []
       currentManifest = undefined
     }
 
     if (currentWalks.length === 0) {
       throw new Error('No walks found in file')
+    }
+
+    if (currentWalks[0].source === 'pilgrim') {
+      window.dispatchEvent(new CustomEvent('pilgrimdata', {
+        detail: { source: 'pilgrim', walkCount: currentWalks.length },
+      }))
     }
 
     currentUnit = resolveInitialUnit(currentManifest?.preferences)
