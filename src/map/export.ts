@@ -1,5 +1,5 @@
 import mapboxgl from 'mapbox-gl'
-import type { Walk } from '../parsers/types'
+import type { Walk, GeoJSONFeature } from '../parsers/types'
 import type { ColorMode } from './overlay'
 import type { UnitSystem } from '../parsers/units'
 import { formatDistance } from '../parsers/units'
@@ -7,7 +7,6 @@ import { getDominantTimeBucket } from './overlay'
 import { generateCombinedSealSVG, buildCombinedWalk, computeWalkHash, extractRoutePoints } from '../panels/seal'
 import { generateBorderSvg, BORDER_WIDTH, BORDER_THEMES } from './border'
 import type { BorderTheme } from './border'
-import type { GeoJSONFeature } from '../parsers/types'
 import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
 
 export function generateFilename(

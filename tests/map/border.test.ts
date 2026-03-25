@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateFrameLines, generateLinearElevation, generateSeasonBars, generateCornerOrnaments, generateEdgeDots, generateSealRadials, generateBorderStatsText, generateWeatherFilter, generateBorderSvg, generateTallyMarks, generateDateRange, generateCompassRose, generateRouteGhost, generatePaperGrain, generateStreakCalendar } from '../../src/map/border'
+import { generateFrameLines, generateLinearElevation, generateSeasonBars, generateCornerOrnaments, generateEdgeDots, generateSealRadials, generateBorderStatsText, generateBorderSvg, generateTallyMarks, generateDateRange, generateCompassRose, generateRouteGhost } from '../../src/map/border'
 import { hexToBytes } from '../../src/panels/seal'
 import type { Walk } from '../../src/parsers/types'
 
@@ -159,33 +159,13 @@ describe('generateBorderStatsText', () => {
   })
 })
 
-describe('generateWeatherFilter', () => {
-  it('produces SVG filter with turbulence for rain', () => {
-    // #when
-    const svg = generateWeatherFilter('rain', 'border-weather')
-
-    // #then
-    expect(svg).toContain('<filter')
-    expect(svg).toContain('feTurbulence')
-    expect(svg).toContain('0.06') // rain frequency
-  })
-
-  it('uses default turbulence when condition is undefined', () => {
-    // #when
-    const svg = generateWeatherFilter(undefined, 'border-weather')
-
-    // #then
-    expect(svg).toContain('0.04') // default frequency
-  })
-})
-
 describe('generateSeasonBars', () => {
   it('produces a single color bar for one walk', () => {
     // #given — summer walk in northern hemisphere
     const walks = [makeWalk({ startDate: new Date('2024-06-15T10:00:00Z') })]
 
     // #when
-    const svg = generateSeasonBars(walks, 200, 26, 55, 240)
+    const svg = generateSeasonBars(walks, 26, 55, 240)
 
     // #then
     expect(svg).toContain('<line')
@@ -202,7 +182,7 @@ describe('generateSeasonBars', () => {
     ]
 
     // #when
-    const svg = generateSeasonBars(walks, 200, 26, 55, 240)
+    const svg = generateSeasonBars(walks, 26, 55, 240)
 
     // #then
     expect(svg).toContain('#7A8B6F') // spring
@@ -368,37 +348,3 @@ describe('generateRouteGhost', () => {
   })
 })
 
-describe('generatePaperGrain', () => {
-  it('produces filter and rect elements for border areas', () => {
-    // #when
-    const svg = generatePaperGrain(400, 300, 60)
-
-    // #then
-    expect(svg).toContain('<filter')
-    expect(svg).toContain('fractalNoise')
-    expect(svg).toContain('<rect')
-  })
-})
-
-describe('generateStreakCalendar', () => {
-  it('produces dots for walk days and rest days', () => {
-    // #given — 3 walks over 5 days
-    const walks = [
-      makeWalk({ startDate: new Date('2024-06-10T10:00:00Z') }),
-      makeWalk({ startDate: new Date('2024-06-12T10:00:00Z') }),
-      makeWalk({ startDate: new Date('2024-06-14T10:00:00Z') }),
-    ]
-
-    // #when
-    const svg = generateStreakCalendar(walks, 400, 300, 60, '#C4956A')
-
-    // #then
-    expect(svg).toContain('<circle')
-    const circles = svg.match(/<circle/g) ?? []
-    expect(circles.length).toBe(5) // 5 days total, 3 filled + 2 empty
-  })
-
-  it('returns empty for no walks', () => {
-    expect(generateStreakCalendar([], 400, 300, 60, '#C4956A')).toBe('')
-  })
-})

@@ -2,7 +2,7 @@ import type { Walk } from '../parsers/types'
 import type { UnitSystem } from '../parsers/units'
 import {
   hexToBytes, extractRoutePoints,
-  getSeason, getWeatherTurbulence, COLORS,
+  getSeason, COLORS,
 } from '../panels/seal'
 import type { RoutePoint } from '../panels/seal'
 
@@ -82,7 +82,6 @@ export function generateLinearElevation(
 
 export function generateSeasonBars(
   walks: Walk[],
-  height: number,
   x: number,
   yStart: number,
   yEnd: number,
@@ -318,111 +317,6 @@ export function generateRouteGhost(
   }
 
   return paths.join('\n')
-}
-
-export function generatePaperGrain(
-  width: number,
-  height: number,
-  borderWidth: number,
-): string {
-  const filterId = 'paper-grain'
-  return [
-    `<defs>`,
-    `  <filter id="${filterId}" x="0" y="0" width="100%" height="100%">`,
-    `    <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="4" stitchTiles="stitch"/>`,
-    `    <feColorMatrix type="saturate" values="0"/>`,
-    `    <feComponentTransfer>`,
-    `      <feFuncA type="linear" slope="0.04"/>`,
-    `    </feComponentTransfer>`,
-    `    <feBlend in="SourceGraphic" mode="multiply"/>`,
-    `  </filter>`,
-    `</defs>`,
-    `<rect x="0" y="0" width="${borderWidth}" height="${height}" filter="url(#${filterId})" fill="#F0EBE1" opacity="0.03"/>`,
-    `<rect x="${width - borderWidth}" y="0" width="${borderWidth}" height="${height}" filter="url(#${filterId})" fill="#F0EBE1" opacity="0.03"/>`,
-    `<rect x="0" y="0" width="${width}" height="${borderWidth}" filter="url(#${filterId})" fill="#F0EBE1" opacity="0.03"/>`,
-    `<rect x="0" y="${height - borderWidth}" width="${width}" height="${borderWidth}" filter="url(#${filterId})" fill="#F0EBE1" opacity="0.03"/>`,
-  ].join('\n')
-}
-
-export function generateStreakCalendar(
-  walks: Walk[],
-  width: number,
-  height: number,
-  borderWidth: number,
-  color: string,
-): string {
-  if (walks.length === 0) return ''
-
-  const sorted = [...walks].sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-  const first = sorted[0].startDate
-  const last = sorted[sorted.length - 1].startDate
-
-  const walkDays = new Set(
-    walks.map(w => {
-      const d = w.startDate
-      return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`
-    }),
-  )
-
-  const startDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), first.getUTCDate()))
-  const endDay = new Date(Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), last.getUTCDate()))
-  const totalDays = Math.floor((endDay.getTime() - startDay.getTime()) / 86400000) + 1
-
-  if (totalDays > 400) return ''
-
-  const effectiveDays = Math.max(totalDays, 1)
-  const sealClearance = 100
-  const statsClearance = 120
-  const availableWidth = width - borderWidth * 2 - sealClearance - statsClearance
-  if (availableWidth < 30) return ''
-  const dotSize = Math.max(2, Math.min(4, availableWidth / effectiveDays * 0.6))
-  const spacing = dotSize * 2.8
-  const cols = Math.max(1, Math.floor(availableWidth / spacing))
-  const rows = Math.ceil(effectiveDays / cols)
-
-  const xStart = borderWidth + sealClearance
-  const yBase = height - borderWidth / 2
-  const yOffset = -(rows * spacing) / 2
-
-  const dots: string[] = []
-  const cursor = new Date(startDay)
-
-  for (let i = 0; i < totalDays; i++) {
-    const col = i % cols
-    const row = Math.floor(i / cols)
-    const key = `${cursor.getUTCFullYear()}-${cursor.getUTCMonth()}-${cursor.getUTCDate()}`
-    const isWalkDay = walkDays.has(key)
-
-    const x = xStart + col * spacing
-    const y = yBase + yOffset + row * spacing
-
-    if (isWalkDay) {
-      dots.push(
-        `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${dotSize.toFixed(1)}" fill="${color}" opacity="0.7"/>`,
-      )
-    } else {
-      dots.push(
-        `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(dotSize * 0.4).toFixed(1)}" fill="${color}" opacity="0.15"/>`,
-      )
-    }
-
-    cursor.setUTCDate(cursor.getUTCDate() + 1)
-  }
-
-  return dots.join('\n')
-}
-
-export function generateWeatherFilter(
-  condition: string | undefined,
-  filterId: string,
-): string {
-  const params = getWeatherTurbulence(condition)
-  return [
-    `<filter id="${filterId}">`,
-    `  <feTurbulence type="turbulence" baseFrequency="${params.freq}" numOctaves="${params.octaves}" seed="42"/>`,
-    `  <feDisplacementMap in="SourceGraphic" scale="${params.scale}"/>`,
-    `</filter>`,
-  ].join('\n')
 }
 
 export function generateFrameLines(
@@ -738,7 +632,7 @@ export async function generateBorderSvg(
   const allElements = [
     generateRouteGhost(walks, width, height, bw, color),
     generateFrameLines(width, height, bw, color, palette.glow, frameElevationPoints),
-    generateSeasonBars(walks, height, seasonBarX, seasonBarYStart, seasonBarYEnd, palette.seasons),
+    generateSeasonBars(walks, seasonBarX, seasonBarYStart, seasonBarYEnd, palette.seasons),
     generateCornerOrnaments(bytes, width, height, bw, color),
     generateEdgeDots(bytes, width, height, bw, color, walks.length),
     generateSealRadials(bytes, sealX, sealY, color),

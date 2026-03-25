@@ -62,7 +62,7 @@ export function renderWaypointsPanel(
 
   for (const { wp, dist } of sorted) {
     const icon = resolveWaypointIcon(wp.properties.icon)
-    const svg = getWaypointIconSvg(icon).replace(/currentColor/g, 'var(--stone)')
+    const svg = getWaypointIconSvg(icon).replace(/currentColor/g, '#8B7355')
 
     const item = document.createElement('div')
     item.className = 'waypoint-item'
