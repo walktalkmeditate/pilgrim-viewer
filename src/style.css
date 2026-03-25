@@ -1047,44 +1047,51 @@ body {
   box-shadow: 0 0 8px 1px var(--swatch-color);
 }
 
-/* Waypoint Markers */
+/* Waypoint Markers — single walk (light map) */
 .waypoint-marker {
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: var(--parchment, #F5F0E8);
-  border: 1.5px solid var(--stone, #8B7355);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  background: #FDFBF7;
+  border: 1.5px solid #C4956A;
+  box-shadow: 0 1px 3px rgba(139, 115, 85, 0.2), 0 0 0 3px rgba(196, 149, 106, 0.08);
   transition: transform 0.15s, box-shadow 0.15s;
 }
 
 .waypoint-marker:hover {
-  transform: scale(1.2);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transform: scale(1.15);
+  box-shadow: 0 2px 6px rgba(139, 115, 85, 0.3), 0 0 0 4px rgba(196, 149, 106, 0.15);
 }
 
 .waypoint-marker svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
+/* Waypoint Markers — overlay (dark map) */
 .waypoint-marker-overlay {
   width: 24px;
   height: 24px;
   background: rgba(28, 25, 20, 0.85);
-  border-color: rgba(196, 149, 106, 0.5);
+  border-color: rgba(196, 149, 106, 0.4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.waypoint-marker-overlay:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(196, 149, 106, 0.15);
 }
 
 .waypoint-marker-overlay svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   opacity: 0.85;
 }
 
+/* Waypoint Tooltips */
 .waypoint-marker .waypoint-tooltip {
   display: none;
   position: absolute;
@@ -1093,9 +1100,9 @@ body {
   transform: translateX(-50%);
   margin-bottom: 6px;
   padding: 3px 8px;
-  background: var(--ink, #2C241E);
-  color: var(--parchment, #F5F0E8);
-  font-family: var(--font-ui, 'Lato', sans-serif);
+  background: #2C241E;
+  color: #F5F0E8;
+  font-family: 'Lato', -apple-system, sans-serif;
   font-size: 0.6875rem;
   white-space: nowrap;
   border-radius: 3px;
