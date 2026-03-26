@@ -4,6 +4,17 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-03-26
+
+### Added
+- Privacy zone — configurable route trimming with live preview slider
+- Faded line rendering for privacy-trimmed route segments
+- Privacy zone support in overlay mode
+
+### Fixed
+- Overlay highlight and colorMode interaction with privacy zones
+- Listener leak in overlay renderer
+
 ## [1.1.0] - 2026-03-25
 
 ### Added
