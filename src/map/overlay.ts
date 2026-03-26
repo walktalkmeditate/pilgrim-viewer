@@ -182,6 +182,9 @@ export function createOverlayRenderer(
     const sid = sourceId(index)
     const lid = layerId(index)
 
+    const privacyMeters = parseInt(localStorage.getItem('pilgrim-viewer-privacy-meters') ?? '0', 10)
+    const useFade = privacyMeters > 0
+
     map.addSource(sid, {
       type: 'geojson',
       data: {
@@ -189,20 +192,53 @@ export function createOverlayRenderer(
         geometry: { type: 'LineString', coordinates: coords },
         properties: {},
       } as GeoJSON.Feature,
+      ...(useFade ? { lineMetrics: true } : {}),
     })
     activeSourceIds.push(sid)
 
-    map.addLayer({
-      id: lid,
-      type: 'line',
-      source: sid,
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: {
-        'line-color': getWalkColor(walk, currentColorMode),
-        'line-width': DEFAULT_WIDTH,
-        'line-opacity': DEFAULT_OPACITY,
-      },
-    })
+    const color = getWalkColor(walk, currentColorMode)
+
+    if (useFade) {
+      const r = parseInt(color.slice(1, 3), 16)
+      const g = parseInt(color.slice(3, 5), 16)
+      const b = parseInt(color.slice(5, 7), 16)
+      const rgba0 = `rgba(${r},${g},${b},0)`
+      const rgba30 = `rgba(${r},${g},${b},0.3)`
+
+      map.addLayer({
+        id: lid,
+        type: 'line',
+        source: sid,
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-width': [
+            'interpolate', ['linear'], ['line-progress'],
+            0, 0.5, 0.08, DEFAULT_WIDTH, 0.92, DEFAULT_WIDTH, 1, 0.5,
+          ] as any,
+          'line-gradient': [
+            'interpolate', ['linear'], ['line-progress'],
+            0, rgba0,
+            0.1, rgba30,
+            0.15, color,
+            0.85, color,
+            0.9, rgba30,
+            1, rgba0,
+          ] as any,
+        },
+      })
+    } else {
+      map.addLayer({
+        id: lid,
+        type: 'line',
+        source: sid,
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': color,
+          'line-width': DEFAULT_WIDTH,
+          'line-opacity': DEFAULT_OPACITY,
+        },
+      })
+    }
     activeLayerIds.push(lid)
 
     const clickHandler = () => { if (walkClickCallback) walkClickCallback(walk) }

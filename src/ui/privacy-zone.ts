@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'pilgrim-viewer-privacy-meters'
 const DEFAULT_METERS = 200
-const PRESETS = [0, 100, 200, 500, 1000]
+const PRESETS = [0, 200, 500, 800]
 
 export interface PrivacyZoneResult {
   container: HTMLElement
@@ -32,7 +32,20 @@ export function createPrivacyZone(): PrivacyZoneResult {
   const toggle = document.createElement('button')
   toggle.className = 'privacy-toggle'
   toggle.title = 'Privacy zone'
-  toggle.textContent = '\u{1F6E1}'
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('viewBox', '0 0 16 16')
+  svg.setAttribute('width', '14')
+  svg.setAttribute('height', '14')
+  svg.style.display = 'block'
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+  path.setAttribute('d', 'M8 1L2 4v4c0 3.5 2.6 6.4 6 7 3.4-.6 6-3.5 6-7V4L8 1z')
+  path.setAttribute('fill', 'none')
+  path.setAttribute('stroke', 'currentColor')
+  path.setAttribute('stroke-width', '1.2')
+  path.setAttribute('stroke-linejoin', 'round')
+  svg.appendChild(path)
+  toggle.appendChild(svg)
 
   const panel = document.createElement('div')
   panel.className = 'privacy-panel'
@@ -51,7 +64,7 @@ export function createPrivacyZone(): PrivacyZoneResult {
   const slider = document.createElement('input')
   slider.type = 'range'
   slider.min = '0'
-  slider.max = '1000'
+  slider.max = '800'
   slider.step = '50'
   slider.value = String(currentMeters)
   slider.className = 'privacy-slider'
@@ -68,6 +81,7 @@ export function createPrivacyZone(): PrivacyZoneResult {
     slider.value = String(meters)
     valueLabel.textContent = formatMeters(meters)
     toggle.classList.toggle('active', meters > 0)
+    path.setAttribute('fill', meters > 0 ? 'currentColor' : 'none')
     saveMeters(meters)
     listeners.forEach(cb => cb(meters))
 
@@ -81,8 +95,8 @@ export function createPrivacyZone(): PrivacyZoneResult {
     const btn = document.createElement('button')
     btn.className = 'privacy-preset'
     btn.dataset.meters = String(m)
-    btn.textContent = m === 0 ? 'Off' : m < 1000 ? m + 'm' : '1km'
-    btn.addEventListener('click', () => updateValue(m))
+    btn.textContent = m === 0 ? 'Off' : m + 'm'
+    btn.addEventListener('click', (e) => { e.stopPropagation(); updateValue(m) })
     presetRow.appendChild(btn)
   })
 

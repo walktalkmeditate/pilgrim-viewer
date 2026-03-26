@@ -192,20 +192,23 @@ function renderApp(): void {
     return { ...walk, route: trimRouteEnds(walk.route, meters) }
   }
 
+
   privacyZone.onChange(() => rerender())
 
   const mapRenderer = createMapRenderer(layout.mapContainer, token)
   activeMapRenderer = mapRenderer
 
   if (currentWalks.length > 1) {
-    rerender = renderMultiWalk(layout, mapRenderer, token)
+    rerender = renderMultiWalk(layout, mapRenderer, token, applyPrivacy)
   } else {
     const walk = currentWalks[0]
-    mapRenderer.showWalk(applyPrivacy(walk))
+    const pf = privacyZone.getMeters() > 0
+    mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
     renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
 
     rerender = () => {
-      mapRenderer.showWalk(applyPrivacy(walk))
+      const pf = privacyZone.getMeters() > 0
+      mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
       renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
     }
   }
@@ -215,6 +218,7 @@ function renderMultiWalk(
   layout: { sidebar: HTMLElement; mapContainer: HTMLElement; overlayMapContainer: HTMLElement; headerControls: HTMLElement },
   mapRenderer: ReturnType<typeof createMapRenderer>,
   token: string,
+  applyPrivacy: (walk: Walk) => Walk,
 ): () => void {
   let mode: 'list' | 'overlay' = 'list'
   let selectedWalk: Walk | null = null
@@ -234,7 +238,8 @@ function renderMultiWalk(
 
     walkList = createWalkList(layout.sidebar, currentWalks, (walk) => {
       selectedWalk = walk
-      mapRenderer.showWalk(walk)
+      const pf = privacyZone.getMeters() > 0
+      mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
       renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
     })
 
@@ -255,7 +260,7 @@ function renderMultiWalk(
     const filtered = selectedYear
       ? currentWalks.filter((w) => w.startDate.getFullYear() === selectedYear)
       : currentWalks
-    overlayRenderer.showAllWalks(filtered)
+    overlayRenderer.showAllWalks(filtered.map(w => applyPrivacy(w)))
     renderOverlaySidebarContent(null)
   }
 
@@ -326,7 +331,7 @@ function renderMultiWalk(
         const filtered = year
           ? currentWalks.filter((w) => w.startDate.getFullYear() === year)
           : currentWalks
-        overlayRenderer.showAllWalks(filtered)
+        overlayRenderer.showAllWalks(filtered.map(w => applyPrivacy(w)))
         renderOverlaySidebarContent(null)
       })
     }
@@ -364,7 +369,7 @@ function renderMultiWalk(
     if (mode === 'list') {
       showListMode()
     } else {
-      renderOverlaySidebarContent(selectedWalk)
+      showOverlayMode()
     }
   }
 }

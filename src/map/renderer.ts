@@ -31,7 +31,7 @@ function findCoordIndex(timestamps: number[], targetTime: number): number {
 export function createMapRenderer(
   container: HTMLElement,
   token: string
-): { showWalk(walk: Walk): void; clear(): void; remove(): void; getMap(): mapboxgl.Map } {
+): { showWalk(walk: Walk, opts?: { privacyFade?: boolean }): void; clear(): void; remove(): void; getMap(): mapboxgl.Map } {
   mapboxgl.accessToken = token
 
   const map = new mapboxgl.Map({
@@ -74,8 +74,8 @@ export function createMapRenderer(
     activeMarkers.length = 0
   }
 
-  function addSource(id: string, data: GeoJSON.GeoJSON): void {
-    map.addSource(id, { type: 'geojson', data })
+  function addSource(id: string, data: GeoJSON.GeoJSON, lineMetrics = false): void {
+    map.addSource(id, { type: 'geojson', data, ...(lineMetrics ? { lineMetrics: true } : {}) })
     activeSources.push(id)
   }
 
@@ -86,6 +86,37 @@ export function createMapRenderer(
       source: sourceId,
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       paint: { 'line-color': color, 'line-width': 3 },
+    })
+    activeLayers.push(id)
+  }
+
+  function addFadedLineLayer(id: string, sourceId: string, color: string): void {
+    const r = parseInt(color.slice(1, 3), 16)
+    const g = parseInt(color.slice(3, 5), 16)
+    const b = parseInt(color.slice(5, 7), 16)
+    const rgba0 = `rgba(${r},${g},${b},0)`
+    const rgba30 = `rgba(${r},${g},${b},0.3)`
+
+    map.addLayer({
+      id,
+      type: 'line',
+      source: sourceId,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: {
+        'line-width': [
+          'interpolate', ['linear'], ['line-progress'],
+          0, 0.5, 0.08, 3, 0.92, 3, 1, 0.5,
+        ] as any,
+        'line-gradient': [
+          'interpolate', ['linear'], ['line-progress'],
+          0, rgba0,
+          0.1, rgba30,
+          0.15, color,
+          0.85, color,
+          0.9, rgba30,
+          1, rgba0,
+        ] as any,
+      },
     })
     activeLayers.push(id)
   }
@@ -109,7 +140,8 @@ export function createMapRenderer(
     activeLayers.push(id)
   }
 
-  function showWalk(walk: Walk): void {
+  function showWalk(walk: Walk, opts?: { privacyFade?: boolean }): void {
+    const privacyFade = opts?.privacyFade ?? false
     clear()
 
     const lineFeatures = walk.route.features.filter(
@@ -143,35 +175,46 @@ export function createMapRenderer(
             type: 'Feature',
             geometry: { type: 'LineString', coordinates: segmentCoords },
             properties: {},
-          } as GeoJSON.Feature)
+          } as GeoJSON.Feature, privacyFade)
 
-          addLineLayer(layerId, sourceId, ACTIVITY_COLORS[activity.type])
+          if (privacyFade) {
+            addFadedLineLayer(layerId, sourceId, ACTIVITY_COLORS[activity.type])
+          } else {
+            addLineLayer(layerId, sourceId, ACTIVITY_COLORS[activity.type])
+          }
         })
       } else {
         addSource('route-source', {
           type: 'Feature',
           geometry: { type: 'LineString', coordinates: allCoords },
           properties: {},
-        } as GeoJSON.Feature)
-        addLineLayer('route-layer', 'route-source', ROUTE_COLOR_DEFAULT)
+        } as GeoJSON.Feature, privacyFade)
+
+        if (privacyFade) {
+          addFadedLineLayer('route-layer', 'route-source', ROUTE_COLOR_DEFAULT)
+        } else {
+          addLineLayer('route-layer', 'route-source', ROUTE_COLOR_DEFAULT)
+        }
       }
 
       const firstCoord = allCoords[0]
       const lastCoord = allCoords[allCoords.length - 1]
 
-      addSource('marker-start-source', {
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: firstCoord },
-        properties: {},
-      } as GeoJSON.Feature)
-      addCircleLayer('marker-start-layer', 'marker-start-source', MARKER_START_COLOR)
+      if (!privacyFade) {
+        addSource('marker-start-source', {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: firstCoord },
+          properties: {},
+        } as GeoJSON.Feature)
+        addCircleLayer('marker-start-layer', 'marker-start-source', MARKER_START_COLOR)
 
-      addSource('marker-end-source', {
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: lastCoord },
-        properties: {},
-      } as GeoJSON.Feature)
-      addCircleLayer('marker-end-layer', 'marker-end-source', MARKER_END_COLOR)
+        addSource('marker-end-source', {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: lastCoord },
+          properties: {},
+        } as GeoJSON.Feature)
+        addCircleLayer('marker-end-layer', 'marker-end-source', MARKER_END_COLOR)
+      }
 
       const waypointFeatures = walk.route.features.filter(
         (f): f is GeoJSONFeature => f.geometry.type === 'Point' && f.properties.markerType === 'waypoint',
