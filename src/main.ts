@@ -19,6 +19,8 @@ import { createUnitToggle, resolveInitialUnit } from './ui/unit-toggle'
 import type { UnitSystem } from './parsers/units'
 import { parsePilgrimWalkJSON } from './parsers/pilgrim'
 import type { Walk, PilgrimManifest, PilgrimPreferences } from './parsers/types'
+import { createPrivacyZone } from './ui/privacy-zone'
+import { trimRouteEnds } from './parsers/route-trim'
 
 const app = document.getElementById('app')!
 
@@ -29,13 +31,14 @@ let activeMapRenderer: ReturnType<typeof createMapRenderer> | null = null
 let activeOverlayRenderer: ReturnType<typeof createOverlayRenderer> | null = null
 let currentUnit: UnitSystem = resolveInitialUnit()
 let activeDropZone: { stop: () => void } | null = null
+const privacyZone = createPrivacyZone()
 
 activeDropZone = createDropZone(app, handleFile)
 
 window.addEventListener('pilgrimdatarequest', () => {
   if (currentWalks.length > 0 && currentWalks[0].source === 'pilgrim') {
     window.dispatchEvent(new CustomEvent('pilgrimdataresponse', {
-      detail: { walks: currentWalks, rawWalks: currentRawWalks, manifest: currentManifest },
+      detail: { walks: currentWalks, rawWalks: currentRawWalks, manifest: currentManifest, trimMeters: privacyZone.getMeters() },
     }))
   }
 })
@@ -114,7 +117,7 @@ async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
 
     if (currentWalks[0].source === 'pilgrim') {
       window.dispatchEvent(new CustomEvent('pilgrimdata', {
-        detail: { source: 'pilgrim', walkCount: currentWalks.length },
+        detail: { source: 'pilgrim', walkCount: currentWalks.length, trimMeters: privacyZone.getMeters() },
       }))
     }
 
@@ -180,7 +183,16 @@ function renderApp(): void {
     currentUnit = unit
     rerender()
   })
+  layout.headerControls.appendChild(privacyZone.container)
   createMoonToggle(layout.headerControls)
+
+  function applyPrivacy(walk: Walk): Walk {
+    const meters = privacyZone.getMeters()
+    if (meters <= 0) return walk
+    return { ...walk, route: trimRouteEnds(walk.route, meters) }
+  }
+
+  privacyZone.onChange(() => rerender())
 
   const mapRenderer = createMapRenderer(layout.mapContainer, token)
   activeMapRenderer = mapRenderer
@@ -189,10 +201,11 @@ function renderApp(): void {
     rerender = renderMultiWalk(layout, mapRenderer, token)
   } else {
     const walk = currentWalks[0]
-    mapRenderer.showWalk(walk)
+    mapRenderer.showWalk(applyPrivacy(walk))
     renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
 
     rerender = () => {
+      mapRenderer.showWalk(applyPrivacy(walk))
       renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
     }
   }

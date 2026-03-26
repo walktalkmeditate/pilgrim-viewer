@@ -281,6 +281,106 @@ body {
   border-color: var(--stone);
 }
 
+/* Privacy Zone */
+.privacy-zone {
+  position: relative;
+}
+
+.privacy-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  opacity: 0.4;
+  transition: opacity 0.2s;
+  padding: 0.25rem;
+}
+
+.privacy-toggle:hover,
+.privacy-toggle.active {
+  opacity: 0.9;
+}
+
+.privacy-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--parchment-secondary);
+  border: 1px solid var(--parchment-tertiary);
+  border-radius: 8px;
+  padding: 0.75rem;
+  min-width: 220px;
+  z-index: 10;
+  margin-top: 0.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.privacy-label {
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  color: var(--fog);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.privacy-desc {
+  font-family: var(--font-ui);
+  font-size: 0.625rem;
+  color: var(--fog);
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+  opacity: 0.7;
+}
+
+.privacy-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.privacy-slider {
+  flex: 1;
+  accent-color: var(--stone);
+}
+
+.privacy-value {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--ink);
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.privacy-presets {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.privacy-preset {
+  font-family: var(--font-ui);
+  font-size: 0.625rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--parchment-tertiary);
+  background: transparent;
+  color: var(--fog);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.privacy-preset:hover {
+  border-color: var(--stone);
+}
+
+.privacy-preset.selected {
+  background: var(--stone);
+  color: var(--parchment);
+  border-color: var(--stone);
+}
+
 /* Main Layout */
 .app-layout {
   display: flex;
