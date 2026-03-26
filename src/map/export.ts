@@ -80,6 +80,7 @@ export function generateKeepsakeImage(
   walks: Walk[],
   unit: UnitSystem,
   theme: BorderTheme,
+  isGold = false,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const saved = boostRoutes(map)
@@ -119,7 +120,7 @@ export function generateKeepsakeImage(
           ctx.drawImage(mapCanvas, bw, bw)
 
           const sealSize = Math.round(150 * dpr)
-          const sealSvg = await generateCombinedSealSVG(walks, sealSize, unit, hashHex)
+          const sealSvg = await generateCombinedSealSVG(walks, sealSize, unit, hashHex, isGold)
           if (sealSvg) {
             const sealImg = await svgToImage(sealSvg)
             ctx.globalAlpha = 0.8

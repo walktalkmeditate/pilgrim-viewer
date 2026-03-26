@@ -22,6 +22,7 @@ export function showKeepsakeModal(
   unit: UnitSystem,
   selectedYear: number | null,
   initialTheme: BorderTheme = 'gold',
+  isGold = false,
 ): void {
   let currentTheme = initialTheme
   let currentDataUrl: string | null = null
@@ -175,12 +176,12 @@ export function showKeepsakeModal(
 
     try {
       if (mode === 'image') {
-        currentDataUrl = await generateKeepsakeImage(map, statsText, walks, unit, currentTheme)
+        currentDataUrl = await generateKeepsakeImage(map, statsText, walks, unit, currentTheme, isGold)
         img.src = currentDataUrl
         img.style.opacity = '1'
       } else {
         abortController = new AbortController()
-        const result = await generateKeepsakeVideo(map, statsText, walks, unit, currentTheme, abortController.signal)
+        const result = await generateKeepsakeVideo(map, statsText, walks, unit, currentTheme, abortController.signal, isGold)
         abortController = null
         if (currentVideoUrl) URL.revokeObjectURL(currentVideoUrl)
         currentVideo = result

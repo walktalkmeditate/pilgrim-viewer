@@ -7,6 +7,12 @@ export const COLORS = {
   fog: '#B8AFA2',
 } as const
 
+export const GOLD_COLORS = {
+  stone: '#C5A55A',
+  dawn: '#D4B86A',
+  fog: '#D4B86A',
+} as const
+
 export function getSeason(date: Date, latitude: number): string {
   const month = date.getUTCMonth()
   const isNorthern = latitude >= 0
@@ -248,6 +254,7 @@ function generateSealSvg(
   routePoints: RoutePoint[],
   size: number,
   unit: UnitSystem,
+  isGold = false,
 ): string {
   const date = walk.startDate
   const latitude = routePoints[0]?.lat ?? 0
@@ -265,7 +272,8 @@ function generateSealSvg(
   const outerR = size * 0.44
   const rotation = (bytes[0] / 255) * 360
 
-  const sealColor = COLORS.stone
+  const palette = isGold ? GOLD_COLORS : COLORS
+  const sealColor = palette.stone
 
   const activeDuration = walk.stats.activeDuration ?? 0
   const meditateRatio = activeDuration > 0 ? (walk.stats.meditateDuration ?? 0) / activeDuration : 0
@@ -311,7 +319,7 @@ ${elements.join('\n')}
   </text>
 </g>
 <text x="${cx}" y="${cy - size * 0.02}" text-anchor="middle" font-family="'Cormorant Garamond', Georgia, serif" font-size="${size * 0.17}" font-weight="300" fill="${sealColor}" opacity="0.7">${displayDist}</text>
-<text x="${cx}" y="${cy + size * 0.1}" text-anchor="middle" font-family="'Lato', -apple-system, sans-serif" font-size="${size * 0.05}" fill="${COLORS.fog}" letter-spacing="2">${unitLabel}</text>
+<text x="${cx}" y="${cy + size * 0.1}" text-anchor="middle" font-family="'Lato', -apple-system, sans-serif" font-size="${size * 0.05}" fill="${palette.fog}" letter-spacing="2">${unitLabel}</text>
 </svg>`
 }
 
@@ -365,6 +373,7 @@ export async function generateCombinedSealSVG(
   size: number,
   unit: UnitSystem = 'metric',
   hashHex?: string,
+  isGold = false,
 ): Promise<string | null> {
   if (typeof crypto === 'undefined' || !crypto.subtle) return null
   if (walks.length === 0) return null
@@ -377,7 +386,7 @@ export async function generateCombinedSealSVG(
   const hash = hashHex ?? await computeWalkHash(combinedWalk, allRoutePoints)
   const bytes = hexToBytes(hash)
 
-  return generateSealSvg(bytes, combinedWalk, allRoutePoints, size, unit)
+  return generateSealSvg(bytes, combinedWalk, allRoutePoints, size, unit, isGold)
 }
 
 export { getSeason as _getSeason, getTimeOfDay as _getTimeOfDay, extractRoutePoints as _extractRoutePoints }

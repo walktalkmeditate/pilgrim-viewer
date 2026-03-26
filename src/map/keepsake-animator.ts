@@ -892,6 +892,7 @@ export function generateKeepsakeVideo(
   unit: UnitSystem,
   theme: BorderTheme,
   signal?: AbortSignal,
+  isGold = false,
 ): Promise<VideoResult> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
@@ -939,7 +940,7 @@ export function generateKeepsakeVideo(
         const sealSizeDevice = Math.round(sealSizeCss * dpr)
         let sealImage: HTMLImageElement | null = null
         try {
-          const sealSvg = await generateCombinedSealSVG(walks, sealSizeDevice, unit, hashHex)
+          const sealSvg = await generateCombinedSealSVG(walks, sealSizeDevice, unit, hashHex, isGold)
           if (sealSvg) {
             sealImage = await svgToImage(sealSvg)
           }
