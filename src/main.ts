@@ -30,6 +30,7 @@ let currentManifest: PilgrimManifest | undefined
 let activeMapRenderer: ReturnType<typeof createMapRenderer> | null = null
 let activeOverlayRenderer: ReturnType<typeof createOverlayRenderer> | null = null
 let currentUnit: UnitSystem = resolveInitialUnit()
+let currentIsGold = false
 let activeDropZone: { stop: () => void } | null = null
 const privacyZone = createPrivacyZone()
 
@@ -47,6 +48,7 @@ interface PilgrimViewerAPI {
   loadData(data: {
     walks: unknown[]
     manifest?: { preferences?: PilgrimPreferences; [key: string]: unknown }
+    isGold?: boolean
   }): void
 }
 
@@ -61,6 +63,7 @@ const pilgrimViewer: PilgrimViewerAPI = {
       if (walks.length === 0) return
 
       currentWalks = walks
+      currentIsGold = !!data.isGold
       currentManifest = data.manifest
         ? {
             schemaVersion: String(data.manifest.schemaVersion ?? '1.0'),
@@ -320,6 +323,7 @@ function renderMultiWalk(
           showKeepsakeModal(
             overlayRenderer.getMap(), text, walksForExport,
             currentUnit, selectedYear, theme as 'gold' | 'silver' | 'sepia' | 'forest',
+            currentIsGold,
           )
         },
       )
