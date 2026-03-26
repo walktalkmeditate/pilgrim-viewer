@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'pilgrim-viewer-privacy-meters'
+export const PRIVACY_STORAGE_KEY = 'pilgrim-viewer-privacy-meters'
 const DEFAULT_METERS = 200
 const PRESETS = [0, 200, 500, 800]
 
@@ -10,7 +10,7 @@ export interface PrivacyZoneResult {
 
 function loadMeters(): number {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    const stored = localStorage.getItem(PRIVACY_STORAGE_KEY)
     if (stored) return parseInt(stored, 10)
   } catch {}
   return DEFAULT_METERS
@@ -18,13 +18,13 @@ function loadMeters(): number {
 
 function saveMeters(meters: number): void {
   try {
-    localStorage.setItem(STORAGE_KEY, String(meters))
+    localStorage.setItem(PRIVACY_STORAGE_KEY, String(meters))
   } catch {}
 }
 
 export function createPrivacyZone(): PrivacyZoneResult {
   let currentMeters = loadMeters()
-  const listeners: ((meters: number) => void)[] = []
+  let listener: ((meters: number) => void) | null = null
 
   const container = document.createElement('div')
   container.className = 'privacy-zone'
@@ -83,7 +83,7 @@ export function createPrivacyZone(): PrivacyZoneResult {
     toggle.classList.toggle('active', meters > 0)
     path.setAttribute('fill', meters > 0 ? 'currentColor' : 'none')
     saveMeters(meters)
-    listeners.forEach(cb => cb(meters))
+    if (listener) listener(meters)
 
     presetRow.querySelectorAll('.privacy-preset').forEach((btn) => {
       const el = btn as HTMLElement
@@ -130,7 +130,7 @@ export function createPrivacyZone(): PrivacyZoneResult {
   return {
     container,
     getMeters: () => currentMeters,
-    onChange: (cb) => { listeners.push(cb) },
+    onChange: (cb) => { listener = cb },
   }
 }
 

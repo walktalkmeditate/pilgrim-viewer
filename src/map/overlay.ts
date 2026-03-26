@@ -3,6 +3,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Walk, GeoJSONFeature } from '../parsers/types'
 import { generateStatsText } from './export'
 import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
+import { PRIVACY_STORAGE_KEY } from '../ui/privacy-zone'
 import { createTerrainToggle } from './terrain'
 
 const SEASON_COLORS: Record<string, string> = {
@@ -182,7 +183,7 @@ export function createOverlayRenderer(
     const sid = sourceId(index)
     const lid = layerId(index)
 
-    const privacyMeters = parseInt(localStorage.getItem('pilgrim-viewer-privacy-meters') ?? '0', 10)
+    const privacyMeters = parseInt(localStorage.getItem(PRIVACY_STORAGE_KEY) ?? '0', 10)
     const useFade = privacyMeters > 0
 
     map.addSource(sid, {
@@ -357,7 +358,16 @@ export function createOverlayRenderer(
     }
   }
 
+  function isPrivacyActive(): boolean {
+    return parseInt(localStorage.getItem(PRIVACY_STORAGE_KEY) ?? '0', 10) > 0
+  }
+
   function highlightWalk(walk: Walk): void {
+    if (isPrivacyActive()) {
+      showAllWalks(currentWalks)
+      return
+    }
+
     const walkIndex = currentWalks.indexOf(walk)
 
     for (let i = 0; i < currentWalks.length; i++) {
@@ -375,6 +385,11 @@ export function createOverlayRenderer(
   }
 
   function clearSelection(): void {
+    if (isPrivacyActive()) {
+      showAllWalks(currentWalks)
+      return
+    }
+
     for (let i = 0; i < currentWalks.length; i++) {
       const lid = layerId(i)
       if (!map.getLayer(lid)) continue
@@ -402,10 +417,14 @@ export function createOverlayRenderer(
 
   function setColorMode(mode: ColorMode): void {
     currentColorMode = mode
-    for (let i = 0; i < currentWalks.length; i++) {
-      const lid = layerId(i)
-      if (!map.getLayer(lid)) continue
-      map.setPaintProperty(lid, 'line-color', getWalkColor(currentWalks[i], mode))
+    if (isPrivacyActive()) {
+      showAllWalks(currentWalks)
+    } else {
+      for (let i = 0; i < currentWalks.length; i++) {
+        const lid = layerId(i)
+        if (!map.getLayer(lid)) continue
+        map.setPaintProperty(lid, 'line-color', getWalkColor(currentWalks[i], mode))
+      }
     }
     createStatsBar(currentWalks)
   }
