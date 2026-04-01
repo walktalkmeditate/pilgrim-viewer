@@ -4,6 +4,16 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] - 2026-03-31
+
+### Added
+- Gold seal support in keepsake image and video generation
+
+### Fixed
+- Keepsake save button cut off and non-functional on mobile iOS Safari — uses Web Share API with download fallback, controls wrap on narrow screens
+- Keepsake image route lines too faint — boosted line width/opacity and fixed render timing
+- Unit toggle (km/mi) not reflected in keepsake stats text, overlay stats bar, or walk list
+
 ## [1.2.0] - 2026-03-26
 
 ### Added
