@@ -4,6 +4,11 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.2] - 2026-03-31
+
+### Fixed
+- Keepsake image route lines now drawn with theme color calligraphy matching video style
+
 ## [1.2.1] - 2026-03-31
 
 ### Added
