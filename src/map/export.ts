@@ -120,6 +120,31 @@ export function generateKeepsakeImage(
 
           ctx.drawImage(mapCanvas, bw, bw)
 
+          ctx.save()
+          ctx.strokeStyle = palette.primary
+          ctx.globalAlpha = 0.7
+          ctx.lineCap = 'round'
+          ctx.lineJoin = 'round'
+          for (const walk of walks) {
+            for (const feature of walk.route.features) {
+              if (feature.geometry.type !== 'LineString') continue
+              const coords = feature.geometry.coordinates as number[][]
+              for (let i = 1; i < coords.length; i++) {
+                const prev = map.project([coords[i - 1][0], coords[i - 1][1]] as [number, number])
+                const cur = map.project([coords[i][0], coords[i][1]] as [number, number])
+                const dx = cur.x - prev.x
+                const dy = cur.y - prev.y
+                const dist = Math.sqrt(dx * dx + dy * dy)
+                ctx.lineWidth = Math.max(1, Math.min(3, 3 - dist * 0.02)) * dpr
+                ctx.beginPath()
+                ctx.moveTo(bw + prev.x * dpr, bw + prev.y * dpr)
+                ctx.lineTo(bw + cur.x * dpr, bw + cur.y * dpr)
+                ctx.stroke()
+              }
+            }
+          }
+          ctx.restore()
+
           const sealSize = Math.round(150 * dpr)
           const sealSvg = await generateCombinedSealSVG(walks, sealSize, unit, hashHex, isGold)
           if (sealSvg) {
