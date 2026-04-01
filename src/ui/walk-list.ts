@@ -1,4 +1,5 @@
 import type { Walk } from '../parsers/types'
+import type { UnitSystem } from '../parsers/units'
 import { formatDistance, formatDuration } from '../parsers/units'
 
 function formatWalkDate(date: Date): string {
@@ -9,6 +10,7 @@ export function createWalkList(
   container: HTMLElement,
   walks: Walk[],
   onSelect: (walk: Walk, index: number) => void,
+  unit: UnitSystem = 'metric',
 ): { select: (index: number) => void } {
   const list = document.createElement('div')
   list.className = 'walk-list'
@@ -25,7 +27,7 @@ export function createWalkList(
 
     const statsEl = document.createElement('div')
     statsEl.className = 'walk-list-stats'
-    statsEl.textContent = `${formatDistance(walk.stats.distance)} · ${formatDuration(walk.stats.activeDuration)}`
+    statsEl.textContent = `${formatDistance(walk.stats.distance, unit)} · ${formatDuration(walk.stats.activeDuration)}`
 
     item.appendChild(dateEl)
     item.appendChild(statsEl)

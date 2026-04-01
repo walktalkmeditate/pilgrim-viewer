@@ -1,6 +1,7 @@
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Walk, GeoJSONFeature } from '../parsers/types'
+import type { UnitSystem } from '../parsers/units'
 import { generateStatsText } from './export'
 import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
 import { PRIVACY_STORAGE_KEY } from '../ui/privacy-zone'
@@ -92,7 +93,8 @@ export interface OverlayRenderer {
   onWalkClick(callback: (walk: Walk) => void): void
   setColorMode(mode: ColorMode): void
   setSelectedYear(year: number | null): void
-  getStatsText(): string
+  getStatsText(unit?: UnitSystem): string
+  setUnit(unit: UnitSystem): void
 }
 
 export function createOverlayRenderer(
@@ -163,7 +165,7 @@ export function createOverlayRenderer(
     removeStatsBar()
     const bar = document.createElement('div')
     bar.className = 'overlay-stats'
-    bar.textContent = generateStatsText(walks, currentColorMode, selectedYear)
+    bar.textContent = generateStatsText(walks, currentColorMode, selectedYear, currentUnit)
     container.appendChild(bar)
     statsBar = bar
   }
@@ -434,8 +436,15 @@ export function createOverlayRenderer(
     createStatsBar(currentWalks)
   }
 
-  function getStatsText(): string {
-    return generateStatsText(currentWalks, currentColorMode, selectedYear)
+  let currentUnit: UnitSystem = 'metric'
+
+  function setUnit(unit: UnitSystem): void {
+    currentUnit = unit
+    createStatsBar(currentWalks)
+  }
+
+  function getStatsText(unit?: UnitSystem): string {
+    return generateStatsText(currentWalks, currentColorMode, selectedYear, unit ?? currentUnit)
   }
 
   return {
@@ -449,5 +458,6 @@ export function createOverlayRenderer(
     setColorMode,
     setSelectedYear,
     getStatsText,
+    setUnit,
   }
 }

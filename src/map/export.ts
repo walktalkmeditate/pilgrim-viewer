@@ -23,9 +23,10 @@ export function generateStatsText(
   walks: Walk[],
   colorMode: ColorMode,
   selectedYear: number | null,
+  unit: UnitSystem = 'metric',
 ): string {
   const count = walks.length
-  const distance = formatDistance(walks.reduce((s, w) => s + w.stats.distance, 0))
+  const distance = formatDistance(walks.reduce((s, w) => s + w.stats.distance, 0), unit)
 
   let detail: string
   if (colorMode === 'timeOfDay') {
@@ -45,8 +46,8 @@ export function generateStatsText(
   return `${prefix}${count} walk${count !== 1 ? 's' : ''} \u00B7 ${distance} \u00B7 ${detail}`
 }
 
-const EXPORT_LINE_WIDTH = 3
-const EXPORT_LINE_OPACITY = 0.85
+const EXPORT_LINE_WIDTH = 4
+const EXPORT_LINE_OPACITY = 1.0
 
 function boostRoutes(map: mapboxgl.Map): Array<{ id: string; width: number; opacity: number }> {
   const saved: Array<{ id: string; width: number; opacity: number }> = []
@@ -86,7 +87,7 @@ export function generateKeepsakeImage(
     const saved = boostRoutes(map)
     map.triggerRepaint()
 
-    requestAnimationFrame(async () => {
+    map.once('render', async () => {
       try {
         const mapCanvas = map.getCanvas()
         const width = mapCanvas.width
@@ -171,7 +172,29 @@ export function generateKeepsakeImage(
   })
 }
 
-export function triggerDownload(dataUrl: string, filename: string): void {
+async function shareOrOpen(blob: Blob, filename: string): Promise<boolean> {
+  if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
+    const file = new File([blob], filename, { type: blob.type })
+    if (navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file] })
+        return true
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return true
+        return false
+      }
+    }
+  }
+  return false
+}
+
+export async function triggerDownload(dataUrl: string, filename: string): Promise<void> {
+  if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
+    const res = await fetch(dataUrl)
+    const blob = await res.blob()
+    if (await shareOrOpen(blob, filename)) return
+  }
+
   const a = document.createElement('a')
   a.href = dataUrl
   a.download = filename
@@ -180,7 +203,9 @@ export function triggerDownload(dataUrl: string, filename: string): void {
   document.body.removeChild(a)
 }
 
-export function triggerBlobDownload(blob: Blob, filename: string): void {
+export async function triggerBlobDownload(blob: Blob, filename: string): Promise<void> {
+  if (await shareOrOpen(blob, filename)) return
+
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

@@ -184,6 +184,7 @@ function renderApp(): void {
 
   createUnitToggle(layout.headerControls, currentUnit, (unit) => {
     currentUnit = unit
+    if (activeOverlayRenderer) activeOverlayRenderer.setUnit(unit)
     rerender()
   })
   layout.headerControls.appendChild(privacyZone.container)
@@ -244,7 +245,7 @@ function renderMultiWalk(
       const pf = privacyZone.getMeters() > 0
       mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
       renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
-    })
+    }, currentUnit)
 
     const selectIdx = selectedWalk ? currentWalks.indexOf(selectedWalk) : 0
     walkList.select(selectIdx >= 0 ? selectIdx : 0)
@@ -257,6 +258,7 @@ function renderMultiWalk(
     if (!overlayRenderer) {
       overlayRenderer = createOverlayRenderer(layout.overlayMapContainer, token)
       activeOverlayRenderer = overlayRenderer
+      overlayRenderer.setUnit(currentUnit)
       overlayRenderer.onWalkClick(handleOverlayWalkClick)
     }
 
@@ -319,7 +321,7 @@ function renderMultiWalk(
       renderExportButtons(panelsContent,
         (theme) => {
           if (!overlayRenderer) return
-          const text = overlayRenderer.getStatsText()
+          const text = overlayRenderer.getStatsText(currentUnit)
           showKeepsakeModal(
             overlayRenderer.getMap(), text, walksForExport,
             currentUnit, selectedYear, theme as 'gold' | 'silver' | 'sepia' | 'forest',
