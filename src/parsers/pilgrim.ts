@@ -287,7 +287,9 @@ function parseWalkPhotos(
 
     if (typeof entry.localIdentifier !== 'string') continue
     if (typeof entry.capturedLat !== 'number' || !Number.isFinite(entry.capturedLat)) continue
+    if (entry.capturedLat < -90 || entry.capturedLat > 90) continue
     if (typeof entry.capturedLng !== 'number' || !Number.isFinite(entry.capturedLng)) continue
+    if (entry.capturedLng < -180 || entry.capturedLng > 180) continue
     if (typeof entry.capturedAt !== 'number' && !(entry.capturedAt instanceof Date)) continue
 
     const capturedAt = epochToDate(entry.capturedAt)

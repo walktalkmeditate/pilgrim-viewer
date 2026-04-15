@@ -407,6 +407,100 @@ describe('parsePilgrimWalkJSON photos', () => {
     expect(walk.photos).toBeUndefined()
   })
 
+  it('drops entries with lat outside [-90, 90]', () => {
+    // #given — Mapbox's LngLat constructor throws on out-of-range
+    // latitude, which would crash the map renderer. Filter at the
+    // parse boundary so downstream never sees garbage coordinates.
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 91,
+          capturedLng: 0,
+          keptAt: 0,
+          embeddedPhotoFilename: 'a.jpg',
+        },
+        {
+          localIdentifier: 'B',
+          capturedAt: 1710001000,
+          capturedLat: -91,
+          capturedLng: 0,
+          keptAt: 0,
+          embeddedPhotoFilename: 'b.jpg',
+        },
+      ],
+    }
+    const urls = new Map([['a.jpg', 'blob:a'], ['b.jpg', 'blob:b']])
+
+    // #when + #then
+    const walk = parsePilgrimWalkJSON(raw, urls)
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('drops entries with lng outside [-180, 180]', () => {
+    // #given
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: 181,
+          keptAt: 0,
+          embeddedPhotoFilename: 'a.jpg',
+        },
+        {
+          localIdentifier: 'B',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: -181,
+          keptAt: 0,
+          embeddedPhotoFilename: 'b.jpg',
+        },
+      ],
+    }
+    const urls = new Map([['a.jpg', 'blob:a'], ['b.jpg', 'blob:b']])
+
+    // #when + #then
+    const walk = parsePilgrimWalkJSON(raw, urls)
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('keeps entries at exact boundary coordinates (90 / -90 / 180 / -180)', () => {
+    // #given — edge of valid range should NOT be dropped
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'north-pole',
+          capturedAt: 1710001000,
+          capturedLat: 90,
+          capturedLng: 180,
+          keptAt: 0,
+          embeddedPhotoFilename: 'np.jpg',
+        },
+        {
+          localIdentifier: 'south-pole',
+          capturedAt: 1710001100,
+          capturedLat: -90,
+          capturedLng: -180,
+          keptAt: 0,
+          embeddedPhotoFilename: 'sp.jpg',
+        },
+      ],
+    }
+    const urls = new Map([['np.jpg', 'blob:np'], ['sp.jpg', 'blob:sp']])
+
+    // #when
+    const walk = parsePilgrimWalkJSON(raw, urls)
+
+    // #then
+    expect(walk.photos).toHaveLength(2)
+  })
+
   it('drops entries with NaN / Infinity coordinates', () => {
     // #given — numbers, but not finite ones
     const raw = {
