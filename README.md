@@ -19,7 +19,8 @@ Drop a `.pilgrim` file and see all of that *plus* your intention, weather, voice
 
 **Viewer**
 - Route map with activity-colored segments (walk/talk/meditate)
-- 8 data panels: Stats, Elevation, Timeline, Intention, Weather, Transcriptions, Celestial, Seal
+- 10 data panels: Stats, Waypoints, Photos, Elevation, Timeline, Intention, Weather, Transcriptions, Celestial, Seal
+- Reliquary photo support — circular thumbnail markers at each pinned photo's GPS coordinate on the map, tap to expand. Sidebar Photos panel shows the same photos as a thumbnail grid; tap a thumbnail to fly the map to that location.
 - Walk list for multi-walk files
 - Collapsible panels, metric/imperial toggle
 
@@ -69,7 +70,7 @@ VITE_MAPBOX_TOKEN=pk.your_token_here
 ```bash
 npm run dev       # Start dev server at localhost:5173
 npm run typecheck # TypeScript check
-npm test          # Run 137 tests
+npm test          # Run 205 tests
 npm run build     # Production build to dist/
 ```
 
@@ -78,7 +79,7 @@ npm run build     # Production build to dist/
 | | |
 |---|---|
 | **Runtime** | Vanilla TypeScript, Vite, Mapbox GL JS, JSZip, fast-xml-parser |
-| **Tests** | Vitest (137 tests, 9 files) |
+| **Tests** | Vitest (205 tests, 12 files) |
 | **Deploy** | GitHub Pages via GitHub Actions (tag-triggered) |
 | **Fonts** | Cormorant Garamond, Lato (Google Fonts) |
 

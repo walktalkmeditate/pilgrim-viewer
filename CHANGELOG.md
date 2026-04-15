@@ -4,6 +4,26 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-04-15
+
+### Added
+- Reliquary photo support for `.pilgrim` archives — v1.3 archives may include a top-level `photos/` directory carrying JPEG bytes for each walk's pinned photos. The viewer extracts them as blob URLs and joins them to each walk via `embeddedPhotoFilename`.
+- New `WalkPhoto` field on the normalized `Walk` type: `{ localIdentifier, capturedAt, lat, lng, url }`.
+- Photo waypoint markers on the single-walk map — circular 44pt thumbnails at each photo's GPS coordinate, wrapped in an accessible `<button>` with stone-accent border. Tapping a marker opens a Mapbox popup with a ~260px expanded view and the capture timestamp.
+- New Photos sidebar panel — thumbnail grid ordered by capturedAt, auto-fill layout that adapts to sidebar width. Tapping a thumbnail pans the map (`flyTo`) to that photo's coordinates so the user can see its marker in context. Self-hides when the walk has no photos.
+- Parser validates photo coordinate ranges (lat ∈ [-90, 90], lng ∈ [-180, 180]) so adversarial archives can't crash Mapbox's `LngLat` constructor.
+- Parser validates each photo entry's runtime shape (string identifier, finite numeric coordinates, parseable capturedAt) before attaching to the Walk, so the map renderer and panel grid only ever see complete, well-typed records.
+
+### Changed
+- `parsePilgrim` signature gains optional `options.urlFactory` and `options.urlRevoker` injection seams for tests (production callers get the browser defaults).
+- `renderPanels` signature gains an optional `onPhotoSelect` callback so the panel layer stays decoupled from Mapbox.
+- Test suite now 205 tests across 12 files (was 165 across 10).
+
+### Fixed
+- Blob URL lifecycle: main.ts now revokes each walk's photo URLs on walk transition (new drop, goHome, JS bridge loadData) so the reliquary doesn't leak ~80KB per photo indefinitely. Uses a commit-then-release ordering to avoid broken thumbnails if the new parse fails mid-flight.
+- Rapid successive drops: `handleFile` now uses a generation counter that invalidates in-flight parses when a newer drop or `goHome` supersedes them — no more state races or orphaned walks.
+- `parsePilgrim` revokes orphan photo URLs (extracted but not referenced by any walk) on the success path, and revokes all created URLs on the error path via `try/finally` so nothing leaks if walk parsing throws.
+
 ## [1.2.2] - 2026-03-31
 
 ### Fixed
