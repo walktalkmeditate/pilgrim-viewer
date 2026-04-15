@@ -3,6 +3,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Walk, Activity, GeoJSONFeature } from '../parsers/types'
 import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
 import { createTerrainToggle } from './terrain'
+import { createPhotoMarker } from './photo-marker'
 
 const ACTIVITY_COLORS: Record<Activity['type'], string> = {
   walk: '#7A8B6F',
@@ -262,6 +263,18 @@ export function createMapRenderer(
           .setLngLat(coords)
           .addTo(map)
         activeMarkers.push(marker)
+      }
+
+      // Reliquary photo markers (v1.3). Each pinned photo becomes a
+      // circular thumbnail with a tap-to-expand popup. Photo blob
+      // URLs are minted by parsePilgrim and revoked by main.ts when
+      // the walks transition; the marker itself is torn down
+      // alongside the rest of the annotations via clear().
+      if (walk.photos) {
+        for (const photo of walk.photos) {
+          const marker = createPhotoMarker(photo, map)
+          activeMarkers.push(marker)
+        }
       }
 
       const bounds = allCoords.reduce(

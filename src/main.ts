@@ -18,7 +18,7 @@ import { createWalkList } from './ui/walk-list'
 import { createUnitToggle, resolveInitialUnit } from './ui/unit-toggle'
 import type { UnitSystem } from './parsers/units'
 import { parsePilgrimWalkJSON } from './parsers/pilgrim'
-import type { Walk, PilgrimManifest, PilgrimPreferences } from './parsers/types'
+import type { Walk, WalkPhoto, PilgrimManifest, PilgrimPreferences } from './parsers/types'
 import { createPrivacyZone } from './ui/privacy-zone'
 import { trimRouteEnds } from './parsers/route-trim'
 
@@ -27,6 +27,14 @@ const app = document.getElementById('app')!
 let currentWalks: Walk[] = []
 let currentRawWalks: unknown[] = []
 let currentManifest: PilgrimManifest | undefined
+// Monotonic counter bumped on every handleFile entry AND on goHome.
+// Each in-flight handleFile captures a local snapshot at entry; after
+// the async parse resolves, it compares the captured value to the live
+// counter. A mismatch means a newer handleFile call (or a goHome)
+// superseded it, so the pending parse releases its own photo URLs and
+// bails without touching global state. Prevents rapid successive drops
+// from leaking blob URLs and from overwriting each other's state.
+let handleFileGeneration = 0
 let activeMapRenderer: ReturnType<typeof createMapRenderer> | null = null
 let activeOverlayRenderer: ReturnType<typeof createOverlayRenderer> | null = null
 let currentUnit: UnitSystem = resolveInitialUnit()
@@ -62,6 +70,12 @@ const pilgrimViewer: PilgrimViewerAPI = {
       const walks = data.walks.map((raw) => parsePilgrimWalkJSON(raw))
       if (walks.length === 0) return
 
+      // loadData replaces state synchronously. Bump the generation
+      // counter so any in-flight handleFile sees a mismatch on its
+      // post-await commit check and bails out instead of overwriting
+      // the JS bridge data.
+      handleFileGeneration += 1
+      releaseWalkPhotoURLs(currentWalks)
       currentWalks = walks
       currentIsGold = !!data.isGold
       currentManifest = data.manifest
@@ -88,10 +102,29 @@ const pilgrimViewer: PilgrimViewerAPI = {
 
 ;(window as unknown as { pilgrimViewer: PilgrimViewerAPI }).pilgrimViewer = pilgrimViewer
 
+// Revoke every blob URL attached to `walks`' reliquary photos.
+// parsePilgrim mints these via URL.createObjectURL and they stay alive
+// for the lifetime of the document unless we explicitly release them —
+// loading several .pilgrim files in one session would otherwise leak
+// ~80KB per photo indefinitely.
+function releaseWalkPhotoURLs(walks: Walk[]): void {
+  for (const walk of walks) {
+    if (!walk.photos) continue
+    for (const photo of walk.photos) {
+      URL.revokeObjectURL(photo.url)
+    }
+  }
+}
+
 function goHome(): void {
+  // Invalidate any in-flight handleFile so its post-await commit is
+  // skipped — otherwise a slow parse that resolves after the user
+  // went home would swap the app back into walk view.
+  handleFileGeneration += 1
   if (activeDropZone) { activeDropZone.stop(); activeDropZone = null }
   if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
   if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
+  releaseWalkPhotoURLs(currentWalks)
   currentWalks = []
   currentRawWalks = []
   currentManifest = undefined
@@ -101,22 +134,44 @@ function goHome(): void {
 }
 
 async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
+  handleFileGeneration += 1
+  const generation = handleFileGeneration
+  const previousWalks = currentWalks
   try {
+    let newWalks: Walk[]
+    let newRawWalks: unknown[] = []
+    let newManifest: PilgrimManifest | undefined
     if (name.endsWith('.pilgrim')) {
       const result = await parsePilgrim(buffer)
-      currentWalks = result.walks
-      currentRawWalks = result.rawWalks
-      currentManifest = result.manifest
+      newWalks = result.walks
+      newRawWalks = result.rawWalks
+      newManifest = result.manifest
     } else {
       const text = new TextDecoder().decode(buffer)
-      currentWalks = parseGPX(text)
-      currentRawWalks = []
-      currentManifest = undefined
+      newWalks = parseGPX(text)
     }
 
-    if (currentWalks.length === 0) {
+    if (generation !== handleFileGeneration) {
+      // A newer handleFile (or goHome) superseded this call while we
+      // were awaiting the parse. Release any photo URLs we just
+      // created and bail without touching global state — previousWalks
+      // is still whatever is currently in currentWalks (managed by
+      // the caller that bumped the counter).
+      releaseWalkPhotoURLs(newWalks)
+      return
+    }
+
+    if (newWalks.length === 0) {
       throw new Error('No walks found in file')
     }
+
+    // Commit the new walks first, THEN release the previous walks' blob
+    // URLs — if the parse had thrown, `previousWalks` would still be in
+    // `currentWalks` with live URLs, avoiding broken thumbnails.
+    currentWalks = newWalks
+    currentRawWalks = newRawWalks
+    currentManifest = newManifest
+    releaseWalkPhotoURLs(previousWalks)
 
     if (currentWalks[0].source === 'pilgrim') {
       window.dispatchEvent(new CustomEvent('pilgrimdata', {
@@ -202,18 +257,30 @@ function renderApp(): void {
   const mapRenderer = createMapRenderer(layout.mapContainer, token)
   activeMapRenderer = mapRenderer
 
+  // Pans the map to a photo's coordinates when the user taps a
+  // thumbnail in the Photos panel. Keeps the current zoom if it's
+  // already close; otherwise zooms to 14 so the user can see the
+  // marker and its neighbours.
+  const onPhotoSelect = (photo: WalkPhoto): void => {
+    const map = mapRenderer.getMap()
+    map.flyTo({
+      center: [photo.lng, photo.lat],
+      zoom: Math.max(map.getZoom(), 14),
+    })
+  }
+
   if (currentWalks.length > 1) {
-    rerender = renderMultiWalk(layout, mapRenderer, token, applyPrivacy)
+    rerender = renderMultiWalk(layout, mapRenderer, token, applyPrivacy, onPhotoSelect)
   } else {
     const walk = currentWalks[0]
     const pf = privacyZone.getMeters() > 0
     mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
-    renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
+    renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
 
     rerender = () => {
       const pf = privacyZone.getMeters() > 0
       mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
-      renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
+      renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
     }
   }
 }
@@ -223,6 +290,7 @@ function renderMultiWalk(
   mapRenderer: ReturnType<typeof createMapRenderer>,
   token: string,
   applyPrivacy: (walk: Walk) => Walk,
+  onPhotoSelect: (photo: WalkPhoto) => void,
 ): () => void {
   let mode: 'list' | 'overlay' = 'list'
   let selectedWalk: Walk | null = null
@@ -244,7 +312,7 @@ function renderMultiWalk(
       selectedWalk = walk
       const pf = privacyZone.getMeters() > 0
       mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
-      renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
+      renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
     }, currentUnit)
 
     const selectIdx = selectedWalk ? currentWalks.indexOf(selectedWalk) : 0

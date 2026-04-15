@@ -278,3 +278,561 @@ describe('parsePilgrim', () => {
     await expect(parsePilgrim(garbage)).rejects.toThrow(/invalid.*zip|failed.*parse/i)
   })
 })
+
+describe('parsePilgrimWalkJSON photos', () => {
+  it('walk without photos key has undefined photos field', () => {
+    // #when
+    const walk = parsePilgrimWalkJSON(sampleWalkRaw)
+
+    // #then
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('attaches photos with filenames that match the URL map', () => {
+    // #given
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'ABC-123/L0/001',
+          capturedAt: 1710001000,
+          capturedLat: 42.87,
+          capturedLng: -8.51,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'ABC-123_L0_001.jpg',
+        },
+      ],
+    }
+    const urls = new Map([['ABC-123_L0_001.jpg', 'blob:mock-url-1']])
+
+    // #when
+    const walk = parsePilgrimWalkJSON(raw, urls)
+
+    // #then
+    expect(walk.photos).toHaveLength(1)
+    expect(walk.photos![0]).toEqual({
+      localIdentifier: 'ABC-123/L0/001',
+      capturedAt: new Date(1710001000 * 1000),
+      lat: 42.87,
+      lng: -8.51,
+      url: 'blob:mock-url-1',
+    })
+  })
+
+  it('tolerates non-array photos field (garbage JSON)', () => {
+    // #given — hand-crafted archive with a malformed photos value
+    const raw = { ...sampleWalkRaw, photos: 'not-an-array' }
+
+    // #when + #then — must not throw
+    const walk = parsePilgrimWalkJSON(raw, new Map([['x.jpg', 'blob:x']]))
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('tolerates null entries in the photos array', () => {
+    // #given — array with nulls mixed in (malformed JSON)
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        null,
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: 0,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'a.jpg',
+        },
+        undefined,
+      ],
+    }
+    const urls = new Map([['a.jpg', 'blob:a']])
+
+    // #when + #then — must not throw, valid entry still attached
+    const walk = parsePilgrimWalkJSON(raw, urls)
+    expect(walk.photos).toHaveLength(1)
+    expect(walk.photos![0].localIdentifier).toBe('A')
+  })
+
+  it('drops entries missing localIdentifier', () => {
+    // #given — entry has valid filename + URL match but localIdentifier
+    // is missing. Without type validation we'd push `{ localIdentifier:
+    // undefined, ... }` into the Walk and crash downstream.
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          capturedAt: 1710001000,
+          capturedLat: 42.87,
+          capturedLng: -8.51,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'a.jpg',
+        },
+      ],
+    }
+    const urls = new Map([['a.jpg', 'blob:a']])
+
+    // #when + #then
+    const walk = parsePilgrimWalkJSON(raw, urls)
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('drops entries with non-numeric capturedLat or capturedLng', () => {
+    // #given — coordinates are strings instead of numbers. Mapbox would
+    // reject these markers outright; filter at the parse boundary.
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: '42.87',
+          capturedLng: -8.51,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'a.jpg',
+        },
+        {
+          localIdentifier: 'B',
+          capturedAt: 1710001000,
+          capturedLat: 42.87,
+          capturedLng: null,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'b.jpg',
+        },
+      ],
+    }
+    const urls = new Map([['a.jpg', 'blob:a'], ['b.jpg', 'blob:b']])
+
+    // #when + #then
+    const walk = parsePilgrimWalkJSON(raw, urls)
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('drops entries with lat outside [-90, 90]', () => {
+    // #given — Mapbox's LngLat constructor throws on out-of-range
+    // latitude, which would crash the map renderer. Filter at the
+    // parse boundary so downstream never sees garbage coordinates.
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 91,
+          capturedLng: 0,
+          keptAt: 0,
+          embeddedPhotoFilename: 'a.jpg',
+        },
+        {
+          localIdentifier: 'B',
+          capturedAt: 1710001000,
+          capturedLat: -91,
+          capturedLng: 0,
+          keptAt: 0,
+          embeddedPhotoFilename: 'b.jpg',
+        },
+      ],
+    }
+    const urls = new Map([['a.jpg', 'blob:a'], ['b.jpg', 'blob:b']])
+
+    // #when + #then
+    const walk = parsePilgrimWalkJSON(raw, urls)
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('drops entries with lng outside [-180, 180]', () => {
+    // #given
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: 181,
+          keptAt: 0,
+          embeddedPhotoFilename: 'a.jpg',
+        },
+        {
+          localIdentifier: 'B',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: -181,
+          keptAt: 0,
+          embeddedPhotoFilename: 'b.jpg',
+        },
+      ],
+    }
+    const urls = new Map([['a.jpg', 'blob:a'], ['b.jpg', 'blob:b']])
+
+    // #when + #then
+    const walk = parsePilgrimWalkJSON(raw, urls)
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('keeps entries at exact boundary coordinates (90 / -90 / 180 / -180)', () => {
+    // #given — edge of valid range should NOT be dropped
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'north-pole',
+          capturedAt: 1710001000,
+          capturedLat: 90,
+          capturedLng: 180,
+          keptAt: 0,
+          embeddedPhotoFilename: 'np.jpg',
+        },
+        {
+          localIdentifier: 'south-pole',
+          capturedAt: 1710001100,
+          capturedLat: -90,
+          capturedLng: -180,
+          keptAt: 0,
+          embeddedPhotoFilename: 'sp.jpg',
+        },
+      ],
+    }
+    const urls = new Map([['np.jpg', 'blob:np'], ['sp.jpg', 'blob:sp']])
+
+    // #when
+    const walk = parsePilgrimWalkJSON(raw, urls)
+
+    // #then
+    expect(walk.photos).toHaveLength(2)
+  })
+
+  it('drops entries with NaN / Infinity coordinates', () => {
+    // #given — numbers, but not finite ones
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: NaN,
+          capturedLng: 0,
+          keptAt: 0,
+          embeddedPhotoFilename: 'a.jpg',
+        },
+        {
+          localIdentifier: 'B',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: Infinity,
+          keptAt: 0,
+          embeddedPhotoFilename: 'b.jpg',
+        },
+      ],
+    }
+    const urls = new Map([['a.jpg', 'blob:a'], ['b.jpg', 'blob:b']])
+
+    // #when + #then
+    const walk = parsePilgrimWalkJSON(raw, urls)
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('drops entries with unparseable capturedAt', () => {
+    // #given — capturedAt is an ISO string (iOS always writes epoch
+    // seconds, but defensive)
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: '2024-04-15T10:30:00Z',
+          capturedLat: 42.87,
+          capturedLng: -8.51,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'a.jpg',
+        },
+      ],
+    }
+    const urls = new Map([['a.jpg', 'blob:a']])
+
+    // #when + #then
+    const walk = parsePilgrimWalkJSON(raw, urls)
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('drops entries that are plain strings or primitives', () => {
+    // #given — primitive values in the array (not objects)
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        'just-a-string',
+        42,
+        true,
+        {
+          localIdentifier: 'valid',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: 0,
+          keptAt: 0,
+          embeddedPhotoFilename: 'a.jpg',
+        },
+      ],
+    }
+    const urls = new Map([['a.jpg', 'blob:a']])
+
+    // #when + #then — only the valid object entry survives
+    const walk = parsePilgrimWalkJSON(raw, urls)
+    expect(walk.photos).toHaveLength(1)
+    expect(walk.photos![0].localIdentifier).toBe('valid')
+  })
+
+  it('skips photos with null embeddedPhotoFilename', () => {
+    // #given
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: 0,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: null,
+        },
+      ],
+    }
+
+    // #when
+    const walk = parsePilgrimWalkJSON(raw, new Map())
+
+    // #then
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('skips photos whose filename is not in the URL map', () => {
+    // #given
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: 0,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'missing.jpg',
+        },
+      ],
+    }
+
+    // #when
+    const walk = parsePilgrimWalkJSON(raw, new Map())
+
+    // #then
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('sorts photos by capturedAt ascending', () => {
+    // #given
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'B',
+          capturedAt: 1710002000,
+          capturedLat: 0,
+          capturedLng: 0,
+          keptAt: 0,
+          embeddedPhotoFilename: 'b.jpg',
+        },
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: 0,
+          keptAt: 0,
+          embeddedPhotoFilename: 'a.jpg',
+        },
+      ],
+    }
+    const urls = new Map([
+      ['a.jpg', 'blob:a'],
+      ['b.jpg', 'blob:b'],
+    ])
+
+    // #when
+    const walk = parsePilgrimWalkJSON(raw, urls)
+
+    // #then
+    expect(walk.photos!.map(p => p.localIdentifier)).toEqual(['A', 'B'])
+  })
+})
+
+describe('parsePilgrim photos', () => {
+  it('extracts photos/ directory and attaches to walks', async () => {
+    // #given
+    const walkRaw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'ABC-123/L0/001',
+          capturedAt: 1710001000,
+          capturedLat: 42.87,
+          capturedLng: -8.51,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'ABC-123_L0_001.jpg',
+        },
+      ],
+    }
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify(sampleManifestRaw))
+    zip.folder('walks')!.file('walk.json', JSON.stringify(walkRaw))
+    zip.folder('photos')!.file(
+      'ABC-123_L0_001.jpg',
+      new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+    )
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' })
+
+    let urlCounter = 0
+    const urlFactory = (): string => `stub:url-${urlCounter++}`
+
+    // #when
+    const result = await parsePilgrim(buffer, { urlFactory })
+
+    // #then
+    expect(result.walks).toHaveLength(1)
+    expect(result.walks[0].photos).toHaveLength(1)
+    expect(result.walks[0].photos![0].url).toBe('stub:url-0')
+    expect(result.walks[0].photos![0].localIdentifier).toBe('ABC-123/L0/001')
+  })
+
+  it('archive without photos/ directory still parses, walks have no photos', async () => {
+    // #given
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify(sampleManifestRaw))
+    zip.folder('walks')!.file('walk.json', JSON.stringify(sampleWalkRaw))
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' })
+
+    // #when
+    const result = await parsePilgrim(buffer)
+
+    // #then
+    expect(result.walks[0].photos).toBeUndefined()
+  })
+
+  it('orphan photos/ directory without matching JSON references is ignored', async () => {
+    // #given — photos/ exists, but the walk JSON has no `photos` field
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify(sampleManifestRaw))
+    zip.folder('walks')!.file('walk.json', JSON.stringify(sampleWalkRaw))
+    zip.folder('photos')!.file('orphan.jpg', new Uint8Array([0xff]))
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' })
+
+    const urlFactory = (): string => 'stub:orphan'
+
+    // #when
+    const result = await parsePilgrim(buffer, { urlFactory })
+
+    // #then
+    expect(result.walks[0].photos).toBeUndefined()
+  })
+
+  it('walk photo whose filename is missing from photos/ dir is skipped', async () => {
+    // #given — walk JSON references `missing.jpg` but the ZIP photos/ dir is empty
+    const walkRaw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: 0,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'missing.jpg',
+        },
+      ],
+    }
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify(sampleManifestRaw))
+    zip.folder('walks')!.file('walk.json', JSON.stringify(walkRaw))
+    zip.folder('photos') // empty photos/ dir
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' })
+
+    // #when
+    const result = await parsePilgrim(buffer)
+
+    // #then
+    expect(result.walks[0].photos).toBeUndefined()
+  })
+
+  it('revokes orphan photo URLs that no walk references', async () => {
+    // #given — archive has an orphan `photos/orphan.jpg` that no walk
+    // references. parsePilgrim must revoke that URL before returning,
+    // or else it leaks for the lifetime of the document.
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify(sampleManifestRaw))
+    zip.folder('walks')!.file('walk.json', JSON.stringify(sampleWalkRaw))
+    zip.folder('photos')!.file('orphan.jpg', new Uint8Array([0xff]))
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' })
+
+    let counter = 0
+    const urlFactory = (): string => `stub:orphan-${counter++}`
+    const revoked: string[] = []
+    const urlRevoker = (url: string): void => { revoked.push(url) }
+
+    // #when
+    const result = await parsePilgrim(buffer, { urlFactory, urlRevoker })
+
+    // #then
+    expect(result.walks[0].photos).toBeUndefined()
+    expect(revoked).toEqual(['stub:orphan-0'])
+  })
+
+  it('does NOT revoke URLs that were attached to a walk', async () => {
+    // #given — archive where every photo is referenced by a walk
+    const walkRaw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 42.87,
+          capturedLng: -8.51,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'a.jpg',
+        },
+      ],
+    }
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify(sampleManifestRaw))
+    zip.folder('walks')!.file('walk.json', JSON.stringify(walkRaw))
+    zip.folder('photos')!.file('a.jpg', new Uint8Array([0xff]))
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' })
+
+    const urlFactory = (): string => 'stub:attached'
+    const revoked: string[] = []
+    const urlRevoker = (url: string): void => { revoked.push(url) }
+
+    // #when
+    const result = await parsePilgrim(buffer, { urlFactory, urlRevoker })
+
+    // #then — attached URLs are the caller's responsibility to revoke
+    expect(result.walks[0].photos).toHaveLength(1)
+    expect(revoked).toEqual([])
+  })
+
+  it('revokes ALL created URLs when walk parsing throws', async () => {
+    // #given — photos/ dir is valid but a walks/*.json file is garbage.
+    // The walk loop calls JSON.parse which throws; parsePilgrim must
+    // revoke every URL it created before propagating the error.
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify(sampleManifestRaw))
+    zip.folder('walks')!.file('broken.json', '{ not valid json ')
+    zip.folder('photos')!.file('a.jpg', new Uint8Array([0xff]))
+    zip.folder('photos')!.file('b.jpg', new Uint8Array([0xff]))
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' })
+
+    let counter = 0
+    const urlFactory = (): string => `stub:err-${counter++}`
+    const revoked: string[] = []
+    const urlRevoker = (url: string): void => { revoked.push(url) }
+
+    // #when + #then
+    await expect(parsePilgrim(buffer, { urlFactory, urlRevoker })).rejects.toThrow()
+    expect(revoked.sort()).toEqual(['stub:err-0', 'stub:err-1'])
+  })
+})
