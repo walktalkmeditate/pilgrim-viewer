@@ -1,4 +1,4 @@
-import type { Walk, PilgrimManifest } from '../parsers/types'
+import type { Walk, WalkPhoto, PilgrimManifest } from '../parsers/types'
 import type { UnitSystem } from '../parsers/units'
 import { renderSealPanel } from '../panels/seal'
 import { renderStatsPanel } from '../panels/stats'
@@ -9,6 +9,7 @@ import { renderWeatherPanel } from '../panels/weather'
 import { renderTranscriptionsPanel } from '../panels/transcriptions'
 import { renderCelestialPanel } from '../panels/celestial'
 import { renderWaypointsPanel } from '../panels/waypoints'
+import { renderPhotosPanel } from '../panels/photos'
 import { formatDistance, formatDuration } from '../parsers/units'
 import { getWalkColor } from '../map/overlay'
 import type { ColorMode } from '../map/overlay'
@@ -184,6 +185,7 @@ export function renderPanels(
   walk: Walk,
   manifest?: PilgrimManifest,
   unit?: UnitSystem,
+  onPhotoSelect?: (photo: WalkPhoto) => void,
 ): void {
   let panelsContent = sidebar.querySelector<HTMLElement>('.panels-content')
   if (!panelsContent) {
@@ -200,6 +202,9 @@ export function renderPanels(
 
   renderStatsPanel(panelsContent, walk, unit)
   renderWaypointsPanel(panelsContent, walk, unit)
+  if (onPhotoSelect) {
+    renderPhotosPanel(panelsContent, walk, onPhotoSelect)
+  }
   renderElevationPanel(panelsContent, walk, unit)
   renderTimelinePanel(panelsContent, walk)
   renderIntentionPanel(panelsContent, walk)

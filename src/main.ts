@@ -18,7 +18,7 @@ import { createWalkList } from './ui/walk-list'
 import { createUnitToggle, resolveInitialUnit } from './ui/unit-toggle'
 import type { UnitSystem } from './parsers/units'
 import { parsePilgrimWalkJSON } from './parsers/pilgrim'
-import type { Walk, PilgrimManifest, PilgrimPreferences } from './parsers/types'
+import type { Walk, WalkPhoto, PilgrimManifest, PilgrimPreferences } from './parsers/types'
 import { createPrivacyZone } from './ui/privacy-zone'
 import { trimRouteEnds } from './parsers/route-trim'
 
@@ -257,18 +257,30 @@ function renderApp(): void {
   const mapRenderer = createMapRenderer(layout.mapContainer, token)
   activeMapRenderer = mapRenderer
 
+  // Pans the map to a photo's coordinates when the user taps a
+  // thumbnail in the Photos panel. Keeps the current zoom if it's
+  // already close; otherwise zooms to 14 so the user can see the
+  // marker and its neighbours.
+  const onPhotoSelect = (photo: WalkPhoto): void => {
+    const map = mapRenderer.getMap()
+    map.flyTo({
+      center: [photo.lng, photo.lat],
+      zoom: Math.max(map.getZoom(), 14),
+    })
+  }
+
   if (currentWalks.length > 1) {
-    rerender = renderMultiWalk(layout, mapRenderer, token, applyPrivacy)
+    rerender = renderMultiWalk(layout, mapRenderer, token, applyPrivacy, onPhotoSelect)
   } else {
     const walk = currentWalks[0]
     const pf = privacyZone.getMeters() > 0
     mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
-    renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
+    renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
 
     rerender = () => {
       const pf = privacyZone.getMeters() > 0
       mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
-      renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
+      renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
     }
   }
 }
@@ -278,6 +290,7 @@ function renderMultiWalk(
   mapRenderer: ReturnType<typeof createMapRenderer>,
   token: string,
   applyPrivacy: (walk: Walk) => Walk,
+  onPhotoSelect: (photo: WalkPhoto) => void,
 ): () => void {
   let mode: 'list' | 'overlay' = 'list'
   let selectedWalk: Walk | null = null
@@ -299,7 +312,7 @@ function renderMultiWalk(
       selectedWalk = walk
       const pf = privacyZone.getMeters() > 0
       mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
-      renderPanels(layout.sidebar, walk, currentManifest, currentUnit)
+      renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
     }, currentUnit)
 
     const selectIdx = selectedWalk ? currentWalks.indexOf(selectedWalk) : 0
