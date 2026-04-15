@@ -117,6 +117,20 @@ Everything runs in your browser. Your walk data is never uploaded, stored, or tr
 
 - [Pilgrim](https://pilgrimapp.org) — the iOS app that creates `.pilgrim` files
 
+## Sample photo credits
+
+The Camino de Santiago sample file (`public/samples/camino-santiago.pilgrim`) embeds nine photos from Wikimedia Commons to demonstrate the Walk Reliquary feature. All photos have been resized to ~600px max dimension and JPEG-compressed for thumbnail display. The on-route coordinates are synthetic — they place each photo at a plausible point along the sample walk, not at the original photographer's GPS.
+
+- **Sarria medieval bridge** — Diego Delso — [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) — [Wikimedia](https://commons.wikimedia.org/wiki/File:Puente_medieval_sobre_el_r%C3%ADo_Celeiro,_Sarria,_Camino_de_Santiago,_Lugo,_Espa%C3%B1a,_2015-09-19,_DD_07.jpg)
+- **Yellow arrow waymark** — Mike T. Norton — [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) — [Wikimedia](https://commons.wikimedia.org/wiki/File:Camino_Sign.jpg)
+- **Portomarín bridge** — Carlos Delgado — [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) — [Wikimedia](https://commons.wikimedia.org/wiki/File:Portomar%C3%ADn-1.JPG)
+- **Gonzar kilometer marker** — Lameiro — [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) — [Wikimedia](https://commons.wikimedia.org/wiki/File:Portomar%C3%ADn_03-23b,_Gonzar.jpg)
+- **Ligonde wayside cross** — Satna — [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) — [Wikimedia](https://commons.wikimedia.org/wiki/File:Ligonde_LameirosAbaixo.jpg)
+- **Boente cross and fountain** — Simon Burchell — [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) — [Wikimedia](https://commons.wikimedia.org/wiki/File:Camino_Franc%C3%A9s,_Boente_02.jpg)
+- **Galician landscape near Arzúa** — Simon Burchell — [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) — [Wikimedia](https://commons.wikimedia.org/wiki/File:Paisaje,_Camino_Franc%C3%A9s,_Arz%C3%BAa,_Galicia.jpg)
+- **Monte do Gozo monument** — Simon Burchell — [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) — [Wikimedia](https://commons.wikimedia.org/wiki/File:Monumento_de_Monte_do_Gozo,_Santiago_de_Compostela.jpg)
+- **Santiago de Compostela cathedral** — Lmbuga — [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) — [Wikimedia](https://commons.wikimedia.org/wiki/File:2025_Facade_towers_of_the_Cathedral_of_Santiago_from_the_Garden_of_the_Speaking_Stones._Galicia.jpg)
+
 ## License
 
-[MIT](LICENSE)
+The viewer source code is [MIT](LICENSE). Sample photo credits as listed above.
