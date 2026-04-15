@@ -258,30 +258,46 @@ function parsePauses(raw: RawPause[]): Pause[] {
   }))
 }
 
-/// Walk photos are linked to the ZIP's photos/ subdirectory by the raw
-/// entry's `embeddedPhotoFilename`. A photo is only attached to the Walk
-/// when its filename resolves to a URL in the map — null filenames (iOS
-/// opted out of embedding, or the source PHAsset could not be resolved)
-/// and unknown filenames (archive was tampered with, or the photos/ dir
-/// was stripped) are silently dropped so the viewer still renders.
+// Walk photos are linked to the ZIP's photos/ subdirectory by the raw
+// entry's `embeddedPhotoFilename`. Each entry must carry a full shape
+// (localIdentifier, capturedAt, capturedLat, capturedLng, filename)
+// AND the filename must resolve to a URL in the map — otherwise the
+// entry is silently dropped so the downstream map renderer and panel
+// grid only ever see complete, well-typed photo records. Defense in
+// depth: iOS never writes malformed entries (PilgrimPackageBuilder
+// drops them before encoding), but hand-crafted or future-format
+// archives could include garbage that would otherwise crash Stage B
+// marker creation on `[undefined, undefined]` coordinates.
 function parseWalkPhotos(
-  raw: RawWalkPhoto[] | undefined,
+  raw: unknown,
   photoUrls: Map<string, string>,
 ): WalkPhoto[] | undefined {
-  if (!raw || raw.length === 0) return undefined
+  if (!Array.isArray(raw) || raw.length === 0) return undefined
 
   const photos: WalkPhoto[] = []
   for (const rp of raw) {
-    const filename = rp.embeddedPhotoFilename
-    if (!filename) continue
+    if (rp == null || typeof rp !== 'object') continue
+    const entry = rp as Partial<RawWalkPhoto>
+
+    const filename = entry.embeddedPhotoFilename
+    if (typeof filename !== 'string' || filename.length === 0) continue
+
     const url = photoUrls.get(filename)
     if (!url) continue
 
+    if (typeof entry.localIdentifier !== 'string') continue
+    if (typeof entry.capturedLat !== 'number' || !Number.isFinite(entry.capturedLat)) continue
+    if (typeof entry.capturedLng !== 'number' || !Number.isFinite(entry.capturedLng)) continue
+    if (typeof entry.capturedAt !== 'number' && !(entry.capturedAt instanceof Date)) continue
+
+    const capturedAt = epochToDate(entry.capturedAt)
+    if (Number.isNaN(capturedAt.getTime())) continue
+
     photos.push({
-      localIdentifier: rp.localIdentifier,
-      capturedAt: epochToDate(rp.capturedAt),
-      lat: rp.capturedLat,
-      lng: rp.capturedLng,
+      localIdentifier: entry.localIdentifier,
+      capturedAt,
+      lat: entry.capturedLat,
+      lng: entry.capturedLng,
       url,
     })
   }
@@ -310,10 +326,7 @@ export function parsePilgrimWalkJSON(raw: any, photoUrls?: Map<string, string>):
     raw.pauses ?? []
   )
 
-  const photos = parseWalkPhotos(
-    raw.photos as RawWalkPhoto[] | undefined,
-    photoUrls ?? new Map(),
-  )
+  const photos = parseWalkPhotos(raw.photos, photoUrls ?? new Map())
 
   const walk: Walk = {
     id: raw.id,
@@ -337,22 +350,28 @@ export function parsePilgrimWalkJSON(raw: any, photoUrls?: Map<string, string>):
   return walk
 }
 
-/// Stage 5 (v1.3) — Pilgrim archives may include a top-level `photos/`
-/// subdirectory carrying JPEGs for each walk's pinned reliquary photos.
-/// The viewer extracts them into per-photo blob URLs and hands a
-/// filename → URL map to `parsePilgrimWalkJSON`, which attaches matching
-/// photos to each walk. Archives without `photos/` parse unchanged.
-///
-/// `options.urlFactory` is an injection seam for tests so they don't
-/// depend on `URL.createObjectURL` being available in the test
-/// environment (it isn't in plain Node). Production callers get the
-/// browser default, which creates a live blob URL that stays valid for
-/// the lifetime of the document.
+// Stage 5 (v1.3) — Pilgrim archives may include a top-level `photos/`
+// subdirectory carrying JPEGs for each walk's pinned reliquary photos.
+// The viewer extracts them into per-photo blob URLs and hands a
+// filename → URL map to `parsePilgrimWalkJSON`, which attaches matching
+// photos to each walk. Archives without `photos/` parse unchanged.
+//
+// `options.urlFactory` and `options.urlRevoker` are injection seams for
+// tests so they don't depend on `URL.createObjectURL`/`revokeObjectURL`
+// being available in the test environment (they aren't in plain Node).
+// Production callers get the browser defaults. Callers are responsible
+// for revoking each `walk.photos[].url` via `URL.revokeObjectURL`
+// before discarding the walks — parsePilgrim only cleans up orphans
+// (photos/*.jpg not referenced by any walk) and the error path.
 export async function parsePilgrim(
   buffer: ArrayBuffer,
-  options?: { urlFactory?: (blob: Blob) => string },
+  options?: {
+    urlFactory?: (blob: Blob) => string
+    urlRevoker?: (url: string) => void
+  },
 ): Promise<{ manifest: PilgrimManifest; walks: Walk[]; rawWalks: unknown[] }> {
   const urlFactory = options?.urlFactory ?? ((blob: Blob) => URL.createObjectURL(blob))
+  const urlRevoker = options?.urlRevoker ?? ((url: string) => URL.revokeObjectURL(url))
 
   let zip: JSZip
 
@@ -383,25 +402,67 @@ export async function parsePilgrim(
   }
 
   const photoUrls = new Map<string, string>()
-  const photoFiles = zip.file(/^photos\/[^/]+\.(jpg|jpeg)$/i)
-  for (const file of photoFiles) {
-    const blob = await file.async('blob')
-    const filename = file.name.replace(/^photos\//, '')
-    photoUrls.set(filename, urlFactory(blob))
+  const createdUrls: string[] = []
+  let committed = false
+
+  try {
+    const photoFiles = zip.file(/^photos\/[^/]+\.(jpg|jpeg)$/i)
+    for (const file of photoFiles) {
+      try {
+        const blob = await file.async('blob')
+        const filename = file.name.replace(/^photos\//, '')
+        const url = urlFactory(blob)
+        photoUrls.set(filename, url)
+        createdUrls.push(url)
+      } catch (err) {
+        // A single corrupt photo entry shouldn't fail the whole parse —
+        // drop it and keep going so the walks + remaining photos still
+        // render.
+        console.warn(`[parsePilgrim] Failed to extract ${file.name}:`, err)
+      }
+    }
+
+    const walkFiles = zip.file(/^walks\/.*\.json$/)
+    const walks: Walk[] = []
+    const rawWalks: unknown[] = []
+
+    for (const file of walkFiles) {
+      const text = await file.async('text')
+      const walkRaw = JSON.parse(text)
+      rawWalks.push(walkRaw)
+      walks.push(parsePilgrimWalkJSON(walkRaw, photoUrls))
+    }
+
+    walks.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+
+    // Revoke any photo URLs that didn't end up attached to a walk —
+    // orphan photos (no walk.photos reference) and photos in zero-walks
+    // archives both end up here. Done on the success path before
+    // committing so the caller sees a clean state.
+    const attachedUrls = new Set<string>()
+    for (const walk of walks) {
+      if (walk.photos) {
+        for (const photo of walk.photos) {
+          attachedUrls.add(photo.url)
+        }
+      }
+    }
+    for (const url of createdUrls) {
+      if (!attachedUrls.has(url)) {
+        urlRevoker(url)
+      }
+    }
+
+    committed = true
+    return { manifest, walks, rawWalks }
+  } finally {
+    // Error path: something threw between extracting photos and
+    // committing walks (corrupt walk JSON, parsePilgrimWalkJSON crash,
+    // whatever). Revoke everything we minted so the blobs don't leak.
+    if (!committed) {
+      for (const url of createdUrls) {
+        urlRevoker(url)
+      }
+    }
   }
-
-  const walkFiles = zip.file(/^walks\/.*\.json$/)
-  const walks: Walk[] = []
-  const rawWalks: unknown[] = []
-
-  for (const file of walkFiles) {
-    const text = await file.async('text')
-    const walkRaw = JSON.parse(text)
-    rawWalks.push(walkRaw)
-    walks.push(parsePilgrimWalkJSON(walkRaw, photoUrls))
-  }
-
-  walks.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-
-  return { manifest, walks, rawWalks }
 }

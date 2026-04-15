@@ -220,6 +220,83 @@ describe('Pilgrim pipeline', () => {
   })
 })
 
+describe('Pilgrim pipeline with embedded photos', () => {
+  async function buildPhotoArchive(): Promise<ArrayBuffer> {
+    const walkWithPhotos = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'TEST-ID-1',
+          capturedAt: 1710001200,
+          capturedLat: 42.8872,
+          capturedLng: -8.5108,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'TEST-ID-1.jpg',
+        },
+        {
+          localIdentifier: 'TEST-ID-2',
+          capturedAt: 1710001800,
+          capturedLat: 42.8860,
+          capturedLng: -8.5130,
+          keptAt: 1710002500,
+          embeddedPhotoFilename: 'TEST-ID-2.jpg',
+        },
+      ],
+    }
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify(sampleManifestRaw))
+    zip.folder('walks')!.file(`${walkWithPhotos.id}.json`, JSON.stringify(walkWithPhotos))
+    // Tiny JPEG-like bytes (SOI marker) — enough to look plausible
+    zip.folder('photos')!.file('TEST-ID-1.jpg', new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))
+    zip.folder('photos')!.file('TEST-ID-2.jpg', new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))
+    return zip.generateAsync({ type: 'arraybuffer' })
+  }
+
+  it('extracts photos/ directory and attaches URLs to the walk', async () => {
+    // #given
+    const buffer = await buildPhotoArchive()
+    let counter = 0
+    const urlFactory = (): string => `stub:integration-${counter++}`
+
+    // #when
+    const { walks } = await parsePilgrim(buffer, { urlFactory })
+
+    // #then
+    expect(walks).toHaveLength(1)
+    expect(walks[0].photos).toHaveLength(2)
+  })
+
+  it('photos are sorted by capturedAt ascending and carry resolved URLs', async () => {
+    // #given
+    const buffer = await buildPhotoArchive()
+    const urlFactory = (): string => 'blob:stub'
+
+    // #when
+    const { walks } = await parsePilgrim(buffer, { urlFactory })
+
+    // #then — ids stay in capturedAt order, both get URLs
+    const ids = walks[0].photos!.map(p => p.localIdentifier)
+    expect(ids).toEqual(['TEST-ID-1', 'TEST-ID-2'])
+    for (const photo of walks[0].photos!) {
+      expect(photo.url).toBe('blob:stub')
+      expect(photo.capturedAt).toBeInstanceOf(Date)
+      expect(Number.isFinite(photo.lat)).toBe(true)
+      expect(Number.isFinite(photo.lng)).toBe(true)
+    }
+  })
+
+  it('archive without photos/ parses identically to pre-v1.3 behavior', async () => {
+    // #given — the existing buildPilgrimBuffer has no photos/
+    const buffer = await buildPilgrimBuffer()
+
+    // #when
+    const { walks } = await parsePilgrim(buffer)
+
+    // #then
+    expect(walks[0].photos).toBeUndefined()
+  })
+})
+
 describe('structural contract', () => {
   it('GPX walk satisfies the Walk structural contract', () => {
     // #when
