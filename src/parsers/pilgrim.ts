@@ -1,6 +1,7 @@
 import JSZip from 'jszip'
 import type {
   Walk,
+  WalkPhoto,
   WalkStats,
   Weather,
   Reflection,
@@ -36,6 +37,15 @@ interface RawPause {
   startDate: number | Date
   endDate: number | Date
   type: string
+}
+
+interface RawWalkPhoto {
+  localIdentifier: string
+  capturedAt: number | Date
+  capturedLat: number
+  capturedLng: number
+  keptAt?: number | Date
+  embeddedPhotoFilename?: string | null
 }
 
 function epochToDate(epoch: number | Date): Date {
@@ -248,8 +258,42 @@ function parsePauses(raw: RawPause[]): Pause[] {
   }))
 }
 
+/// Walk photos are linked to the ZIP's photos/ subdirectory by the raw
+/// entry's `embeddedPhotoFilename`. A photo is only attached to the Walk
+/// when its filename resolves to a URL in the map — null filenames (iOS
+/// opted out of embedding, or the source PHAsset could not be resolved)
+/// and unknown filenames (archive was tampered with, or the photos/ dir
+/// was stripped) are silently dropped so the viewer still renders.
+function parseWalkPhotos(
+  raw: RawWalkPhoto[] | undefined,
+  photoUrls: Map<string, string>,
+): WalkPhoto[] | undefined {
+  if (!raw || raw.length === 0) return undefined
+
+  const photos: WalkPhoto[] = []
+  for (const rp of raw) {
+    const filename = rp.embeddedPhotoFilename
+    if (!filename) continue
+    const url = photoUrls.get(filename)
+    if (!url) continue
+
+    photos.push({
+      localIdentifier: rp.localIdentifier,
+      capturedAt: epochToDate(rp.capturedAt),
+      lat: rp.capturedLat,
+      lng: rp.capturedLng,
+      url,
+    })
+  }
+
+  if (photos.length === 0) return undefined
+
+  photos.sort((a, b) => a.capturedAt.getTime() - b.capturedAt.getTime())
+  return photos
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function parsePilgrimWalkJSON(raw: any): Walk {
+export function parsePilgrimWalkJSON(raw: any, photoUrls?: Map<string, string>): Walk {
   const startDate = epochToDate(raw.startDate)
   const endDate = epochToDate(raw.endDate)
   const voiceRecordings = parseVoiceRecordings(raw.voiceRecordings ?? [])
@@ -264,6 +308,11 @@ export function parsePilgrimWalkJSON(raw: any): Walk {
     rawActivities,
     raw.voiceRecordings ?? [],
     raw.pauses ?? []
+  )
+
+  const photos = parseWalkPhotos(
+    raw.photos as RawWalkPhoto[] | undefined,
+    photoUrls ?? new Map(),
   )
 
   const walk: Walk = {
@@ -283,13 +332,28 @@ export function parsePilgrimWalkJSON(raw: any): Walk {
   if (reflection) walk.reflection = reflection
   if (celestial) walk.celestial = celestial
   if (raw.favicon) walk.favicon = raw.favicon
+  if (photos) walk.photos = photos
 
   return walk
 }
 
+/// Stage 5 (v1.3) — Pilgrim archives may include a top-level `photos/`
+/// subdirectory carrying JPEGs for each walk's pinned reliquary photos.
+/// The viewer extracts them into per-photo blob URLs and hands a
+/// filename → URL map to `parsePilgrimWalkJSON`, which attaches matching
+/// photos to each walk. Archives without `photos/` parse unchanged.
+///
+/// `options.urlFactory` is an injection seam for tests so they don't
+/// depend on `URL.createObjectURL` being available in the test
+/// environment (it isn't in plain Node). Production callers get the
+/// browser default, which creates a live blob URL that stays valid for
+/// the lifetime of the document.
 export async function parsePilgrim(
-  buffer: ArrayBuffer
+  buffer: ArrayBuffer,
+  options?: { urlFactory?: (blob: Blob) => string },
 ): Promise<{ manifest: PilgrimManifest; walks: Walk[]; rawWalks: unknown[] }> {
+  const urlFactory = options?.urlFactory ?? ((blob: Blob) => URL.createObjectURL(blob))
+
   let zip: JSZip
 
   try {
@@ -318,6 +382,14 @@ export async function parsePilgrim(
     },
   }
 
+  const photoUrls = new Map<string, string>()
+  const photoFiles = zip.file(/^photos\/[^/]+\.(jpg|jpeg)$/i)
+  for (const file of photoFiles) {
+    const blob = await file.async('blob')
+    const filename = file.name.replace(/^photos\//, '')
+    photoUrls.set(filename, urlFactory(blob))
+  }
+
   const walkFiles = zip.file(/^walks\/.*\.json$/)
   const walks: Walk[] = []
   const rawWalks: unknown[] = []
@@ -326,7 +398,7 @@ export async function parsePilgrim(
     const text = await file.async('text')
     const walkRaw = JSON.parse(text)
     rawWalks.push(walkRaw)
-    walks.push(parsePilgrimWalkJSON(walkRaw))
+    walks.push(parsePilgrimWalkJSON(walkRaw, photoUrls))
   }
 
   walks.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())

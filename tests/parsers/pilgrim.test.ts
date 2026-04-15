@@ -278,3 +278,223 @@ describe('parsePilgrim', () => {
     await expect(parsePilgrim(garbage)).rejects.toThrow(/invalid.*zip|failed.*parse/i)
   })
 })
+
+describe('parsePilgrimWalkJSON photos', () => {
+  it('walk without photos key has undefined photos field', () => {
+    // #when
+    const walk = parsePilgrimWalkJSON(sampleWalkRaw)
+
+    // #then
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('attaches photos with filenames that match the URL map', () => {
+    // #given
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'ABC-123/L0/001',
+          capturedAt: 1710001000,
+          capturedLat: 42.87,
+          capturedLng: -8.51,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'ABC-123_L0_001.jpg',
+        },
+      ],
+    }
+    const urls = new Map([['ABC-123_L0_001.jpg', 'blob:mock-url-1']])
+
+    // #when
+    const walk = parsePilgrimWalkJSON(raw, urls)
+
+    // #then
+    expect(walk.photos).toHaveLength(1)
+    expect(walk.photos![0]).toEqual({
+      localIdentifier: 'ABC-123/L0/001',
+      capturedAt: new Date(1710001000 * 1000),
+      lat: 42.87,
+      lng: -8.51,
+      url: 'blob:mock-url-1',
+    })
+  })
+
+  it('skips photos with null embeddedPhotoFilename', () => {
+    // #given
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: 0,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: null,
+        },
+      ],
+    }
+
+    // #when
+    const walk = parsePilgrimWalkJSON(raw, new Map())
+
+    // #then
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('skips photos whose filename is not in the URL map', () => {
+    // #given
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: 0,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'missing.jpg',
+        },
+      ],
+    }
+
+    // #when
+    const walk = parsePilgrimWalkJSON(raw, new Map())
+
+    // #then
+    expect(walk.photos).toBeUndefined()
+  })
+
+  it('sorts photos by capturedAt ascending', () => {
+    // #given
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'B',
+          capturedAt: 1710002000,
+          capturedLat: 0,
+          capturedLng: 0,
+          keptAt: 0,
+          embeddedPhotoFilename: 'b.jpg',
+        },
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: 0,
+          keptAt: 0,
+          embeddedPhotoFilename: 'a.jpg',
+        },
+      ],
+    }
+    const urls = new Map([
+      ['a.jpg', 'blob:a'],
+      ['b.jpg', 'blob:b'],
+    ])
+
+    // #when
+    const walk = parsePilgrimWalkJSON(raw, urls)
+
+    // #then
+    expect(walk.photos!.map(p => p.localIdentifier)).toEqual(['A', 'B'])
+  })
+})
+
+describe('parsePilgrim photos', () => {
+  it('extracts photos/ directory and attaches to walks', async () => {
+    // #given
+    const walkRaw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'ABC-123/L0/001',
+          capturedAt: 1710001000,
+          capturedLat: 42.87,
+          capturedLng: -8.51,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'ABC-123_L0_001.jpg',
+        },
+      ],
+    }
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify(sampleManifestRaw))
+    zip.folder('walks')!.file('walk.json', JSON.stringify(walkRaw))
+    zip.folder('photos')!.file(
+      'ABC-123_L0_001.jpg',
+      new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+    )
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' })
+
+    let urlCounter = 0
+    const urlFactory = (): string => `stub:url-${urlCounter++}`
+
+    // #when
+    const result = await parsePilgrim(buffer, { urlFactory })
+
+    // #then
+    expect(result.walks).toHaveLength(1)
+    expect(result.walks[0].photos).toHaveLength(1)
+    expect(result.walks[0].photos![0].url).toBe('stub:url-0')
+    expect(result.walks[0].photos![0].localIdentifier).toBe('ABC-123/L0/001')
+  })
+
+  it('archive without photos/ directory still parses, walks have no photos', async () => {
+    // #given
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify(sampleManifestRaw))
+    zip.folder('walks')!.file('walk.json', JSON.stringify(sampleWalkRaw))
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' })
+
+    // #when
+    const result = await parsePilgrim(buffer)
+
+    // #then
+    expect(result.walks[0].photos).toBeUndefined()
+  })
+
+  it('orphan photos/ directory without matching JSON references is ignored', async () => {
+    // #given — photos/ exists, but the walk JSON has no `photos` field
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify(sampleManifestRaw))
+    zip.folder('walks')!.file('walk.json', JSON.stringify(sampleWalkRaw))
+    zip.folder('photos')!.file('orphan.jpg', new Uint8Array([0xff]))
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' })
+
+    const urlFactory = (): string => 'stub:orphan'
+
+    // #when
+    const result = await parsePilgrim(buffer, { urlFactory })
+
+    // #then
+    expect(result.walks[0].photos).toBeUndefined()
+  })
+
+  it('walk photo whose filename is missing from photos/ dir is skipped', async () => {
+    // #given — walk JSON references `missing.jpg` but the ZIP photos/ dir is empty
+    const walkRaw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 0,
+          capturedLng: 0,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'missing.jpg',
+        },
+      ],
+    }
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify(sampleManifestRaw))
+    zip.folder('walks')!.file('walk.json', JSON.stringify(walkRaw))
+    zip.folder('photos') // empty photos/ dir
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' })
+
+    // #when
+    const result = await parsePilgrim(buffer)
+
+    // #then
+    expect(result.walks[0].photos).toBeUndefined()
+  })
+})

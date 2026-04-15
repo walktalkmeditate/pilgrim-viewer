@@ -107,6 +107,14 @@ export interface GeoJSONFeatureCollection {
   features: GeoJSONFeature[]
 }
 
+export interface WalkPhoto {
+  localIdentifier: string
+  capturedAt: Date
+  lat: number
+  lng: number
+  url: string
+}
+
 export interface Walk {
   id: string
   startDate: Date
@@ -121,6 +129,7 @@ export interface Walk {
   pauses: Pause[]
   celestial?: CelestialContext
   favicon?: string
+  photos?: WalkPhoto[]
   source: 'pilgrim' | 'gpx'
 }
 
