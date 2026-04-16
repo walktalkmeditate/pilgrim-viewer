@@ -46,6 +46,10 @@ interface RawWalkPhoto {
   capturedLng: number
   keptAt?: number | Date
   embeddedPhotoFilename?: string | null
+  // Base64 data URL injected by the iOS JS bridge (in-app "My
+  // Journey" viewer). When present, used as the photo URL directly
+  // — skips the embeddedPhotoFilename + ZIP blob URL lookup.
+  inlineUrl?: string | null
 }
 
 function epochToDate(epoch: number | Date): Date {
@@ -279,10 +283,19 @@ function parseWalkPhotos(
     if (rp == null || typeof rp !== 'object') continue
     const entry = rp as Partial<RawWalkPhoto>
 
-    const filename = entry.embeddedPhotoFilename
-    if (typeof filename !== 'string' || filename.length === 0) continue
-
-    const url = photoUrls.get(filename)
+    // Resolve photo URL from either source:
+    //   1. inlineUrl — base64 data URL from the iOS JS bridge
+    //      (in-app "My Journey" viewer, no ZIP involved)
+    //   2. embeddedPhotoFilename — mapped to a blob URL via the
+    //      ZIP's photos/ directory (standalone viewer file drop)
+    let url: string | undefined
+    if (typeof entry.inlineUrl === 'string' && entry.inlineUrl.length > 0) {
+      url = entry.inlineUrl
+    } else {
+      const filename = entry.embeddedPhotoFilename
+      if (typeof filename !== 'string' || filename.length === 0) continue
+      url = photoUrls.get(filename)
+    }
     if (!url) continue
 
     if (typeof entry.localIdentifier !== 'string') continue

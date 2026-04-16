@@ -580,6 +580,59 @@ describe('parsePilgrimWalkJSON photos', () => {
     expect(walk.photos![0].localIdentifier).toBe('valid')
   })
 
+  it('uses inlineUrl when present (JS bridge path)', () => {
+    // #given — the in-app "My Journey" viewer passes photos with
+    // base64 data URLs instead of embeddedPhotoFilename references.
+    // No photoUrls map needed — the URL is inline on the entry.
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 42.87,
+          capturedLng: -8.51,
+          keptAt: 1710002000,
+          inlineUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==',
+        },
+      ],
+    }
+
+    // #when — no photoUrls map passed (JS bridge doesn't have one)
+    const walk = parsePilgrimWalkJSON(raw)
+
+    // #then
+    expect(walk.photos).toHaveLength(1)
+    expect(walk.photos![0].url).toBe('data:image/jpeg;base64,/9j/4AAQSkZJRg==')
+    expect(walk.photos![0].localIdentifier).toBe('A')
+    expect(walk.photos![0].lat).toBe(42.87)
+  })
+
+  it('prefers inlineUrl over embeddedPhotoFilename when both present', () => {
+    // #given — both sources present; inlineUrl wins
+    const raw = {
+      ...sampleWalkRaw,
+      photos: [
+        {
+          localIdentifier: 'A',
+          capturedAt: 1710001000,
+          capturedLat: 42.87,
+          capturedLng: -8.51,
+          keptAt: 1710002000,
+          embeddedPhotoFilename: 'a.jpg',
+          inlineUrl: 'data:image/jpeg;base64,INLINE',
+        },
+      ],
+    }
+    const urls = new Map([['a.jpg', 'blob:zip-url']])
+
+    // #when
+    const walk = parsePilgrimWalkJSON(raw, urls)
+
+    // #then — inlineUrl takes priority
+    expect(walk.photos![0].url).toBe('data:image/jpeg;base64,INLINE')
+  })
+
   it('skips photos with null embeddedPhotoFilename', () => {
     // #given
     const raw = {
