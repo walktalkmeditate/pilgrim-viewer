@@ -21,12 +21,52 @@ import { parsePilgrimWalkJSON } from './parsers/pilgrim'
 import type { Walk, WalkPhoto, PilgrimManifest, PilgrimPreferences } from './parsers/types'
 import { createPrivacyZone } from './ui/privacy-zone'
 import { trimRouteEnds } from './parsers/route-trim'
+import type { LiveTrim } from './edit/trim-handles'
 
 const app = document.getElementById('app')!
+
+const isEditHost = location.hostname.startsWith('edit.')
+const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+const enableEdit = isEditHost || (isLocalDev && new URLSearchParams(location.search).has('edit'))
+
+let editApi: import('./edit').EditApi | null = null
+let detachEdit: (() => void) | null = null
+let detachStagingSub: (() => void) | null = null
+
+// Per-render cleanup: drops the trim-handle markers (and any other
+// DOM hooks `attachToWalkUI` returned). Called inside rerender BEFORE
+// reattaching so handles don't accumulate across privacy/unit toggles.
+function detachWalkUI(): void {
+  if (detachEdit) {
+    detachEdit()
+    detachEdit = null
+  }
+}
+
+// Per-app-mount cleanup: also drops the staging subscription so we
+// don't leak listeners across renderApp() invocations. Called at the
+// top of renderApp (before mounting a fresh layout) and on goHome.
+// MUST NOT be called from rerender — that would orphan the subscription
+// after a single rerender, breaking live preview on subsequent mods.
+function detachAllEdit(): void {
+  detachWalkUI()
+  if (detachStagingSub) {
+    detachStagingSub()
+    detachStagingSub = null
+  }
+}
+async function ensureEditMounted(headerControls: HTMLElement): Promise<void> {
+  if (!enableEdit || editApi) return
+  const { mountEditLayer } = await import('./edit')
+  editApi = mountEditLayer(headerControls, app)
+}
 
 let currentWalks: Walk[] = []
 let currentRawWalks: unknown[] = []
 let currentManifest: PilgrimManifest | undefined
+let originalPilgrimBuffer: ArrayBuffer | undefined
+let originalGpxXml: string | undefined
+let currentLoadedFilename: string | undefined
 // Monotonic counter bumped on every handleFile entry AND on goHome.
 // Each in-flight handleFile captures a local snapshot at entry; after
 // the async parse resolves, it compares the captured value to the live
@@ -49,6 +89,101 @@ window.addEventListener('pilgrimdatarequest', () => {
     window.dispatchEvent(new CustomEvent('pilgrimdataresponse', {
       detail: { walks: currentWalks, rawWalks: currentRawWalks, manifest: currentManifest, trimMeters: privacyZone.getMeters() },
     }))
+  }
+})
+
+window.addEventListener('pilgrim-edit-save-requested', async () => {
+  if (!editApi) return
+  if (currentWalks.length === 0) return
+  const source = currentWalks[0].source
+  const originalFilename = currentLoadedFilename ?? (source === 'pilgrim' ? 'walk.pilgrim' : 'walk.gpx')
+  // Capture the file-load generation at save start. The post-save event
+  // handler reads this back to bail if the user dropped a different file
+  // (or went home) while the save was in flight — without this guard,
+  // the handler would clobber the new file's state with the old file's
+  // saved data (and revoke the new file's blob URLs out from under the
+  // live DOM).
+  const generationAtSave = handleFileGeneration
+  try {
+    if (source === 'pilgrim') {
+      if (!currentManifest || !originalPilgrimBuffer) return
+      await editApi.saveAll({
+        source: 'pilgrim',
+        originalBuffer: originalPilgrimBuffer,
+        manifest: currentManifest,
+        rawWalks: currentRawWalks,
+        originalFilename,
+        generation: generationAtSave,
+      })
+    } else {
+      if (!originalGpxXml) return
+      await editApi.saveAll({
+        source: 'gpx', originalXml: originalGpxXml, originalFilename,
+        generation: generationAtSave,
+      })
+    }
+  } catch (err) {
+    // Validation, ZIP corruption, or any other save-time failure. Surface
+    // it instead of letting the unhandled rejection vanish into the
+    // console. Staging stays intact so the user can retry.
+    const msg = err instanceof Error ? err.message : 'Save failed'
+    console.error('Save error:', err)
+    alert(`Save failed: ${msg}`)
+  }
+})
+
+// Re-sync in-memory state to whatever was just saved. Called after a
+// successful save so that:
+//  - the live preview reflects the post-tend state (deletions stay deleted,
+//    not reverted by staging.clear's re-render),
+//  - subsequent saves stack on top of the saved-file state, preserving
+//    cumulative manifest.modifications history,
+//  - the user can hit Save again with new edits and get a sensible diff.
+window.addEventListener('pilgrim-edit-saved', async (event) => {
+  if (!editApi) return
+  const detail = (event as CustomEvent).detail as
+    | { source: 'pilgrim'; buffer: ArrayBuffer; filename: string; generation: number }
+    | { source: 'gpx'; xml: string; filename: string; generation: number }
+  // Bail if the user swapped files (or went home, or used the JS
+  // bridge to load new data) while this save was in flight. Without
+  // this guard the handler would overwrite the NEW file's state with
+  // the OLD file's saved data — revoking the new file's blob URLs
+  // out from under the live DOM.
+  if (detail.generation !== handleFileGeneration) {
+    if (editApi) editApi.staging.clear()
+    return
+  }
+  try {
+    if (detail.source === 'pilgrim') {
+      const reParsed = await parsePilgrim(detail.buffer)
+      // Re-check after the await: parsePilgrim is async, so a file swap
+      // could have raced in here too.
+      if (detail.generation !== handleFileGeneration) {
+        releaseWalkPhotoURLs(reParsed.walks)
+        if (editApi) editApi.staging.clear()
+        return
+      }
+      releaseWalkPhotoURLs(currentWalks)
+      currentWalks = reParsed.walks
+      currentRawWalks = reParsed.rawWalks
+      currentManifest = reParsed.manifest
+      originalPilgrimBuffer = detail.buffer
+      originalGpxXml = undefined
+    } else {
+      currentWalks = parseGPX(detail.xml)
+      currentRawWalks = []
+      currentManifest = undefined
+      originalGpxXml = detail.xml
+      originalPilgrimBuffer = undefined
+    }
+    currentLoadedFilename = detail.filename
+    editApi.staging.clear()
+    void renderApp()
+  } catch (err) {
+    console.error('Post-save state refresh failed:', err)
+    // Even on refresh failure, clear staging so the drawer doesn't
+    // continue to show the just-saved mods as still pending.
+    editApi.staging.clear()
   }
 })
 
@@ -76,6 +211,9 @@ const pilgrimViewer: PilgrimViewerAPI = {
       // the JS bridge data.
       handleFileGeneration += 1
       releaseWalkPhotoURLs(currentWalks)
+      // Drop any pending edits — they belong to the previous file/walks
+      // and would silently no-op against the new data on save.
+      if (editApi) editApi.staging.clear()
       currentWalks = walks
       currentIsGold = !!data.isGold
       currentManifest = data.manifest
@@ -93,7 +231,7 @@ const pilgrimViewer: PilgrimViewerAPI = {
           }
         : undefined
 
-      renderApp()
+      void renderApp()
     } catch (err) {
       console.error('pilgrimViewer.loadData failed:', err)
     }
@@ -121,6 +259,8 @@ function goHome(): void {
   // skipped — otherwise a slow parse that resolves after the user
   // went home would swap the app back into walk view.
   handleFileGeneration += 1
+  detachAllEdit()
+  editApi = null
   if (activeDropZone) { activeDropZone.stop(); activeDropZone = null }
   if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
   if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
@@ -141,13 +281,18 @@ async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
     let newWalks: Walk[]
     let newRawWalks: unknown[] = []
     let newManifest: PilgrimManifest | undefined
+    let pendingPilgrimBuffer: ArrayBuffer | undefined
+    let pendingGpxXml: string | undefined
+
     if (name.endsWith('.pilgrim')) {
+      pendingPilgrimBuffer = buffer
       const result = await parsePilgrim(buffer)
       newWalks = result.walks
       newRawWalks = result.rawWalks
       newManifest = result.manifest
     } else {
       const text = new TextDecoder().decode(buffer)
+      pendingGpxXml = text
       newWalks = parseGPX(text)
     }
 
@@ -171,7 +316,16 @@ async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
     currentWalks = newWalks
     currentRawWalks = newRawWalks
     currentManifest = newManifest
+    originalPilgrimBuffer = pendingPilgrimBuffer
+    originalGpxXml = pendingGpxXml
+    currentLoadedFilename = name
     releaseWalkPhotoURLs(previousWalks)
+    // Drop any pending edits scoped to the previous file. Without this,
+    // the drawer would keep showing mods whose walkIds belong to a file
+    // that's no longer loaded — Save would then silently produce a
+    // no-op file (modsForWalk filters out all the orphaned mods) and
+    // the user would lose their prior edits without warning.
+    if (editApi) editApi.staging.clear()
 
     if (currentWalks[0].source === 'pilgrim') {
       window.dispatchEvent(new CustomEvent('pilgrimdata', {
@@ -184,11 +338,11 @@ async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
     const token = getMapboxToken()
     if (!token) {
       app.textContent = ''
-      renderTokenPrompt(app, () => renderApp())
+      renderTokenPrompt(app, () => { void renderApp() })
       return
     }
 
-    renderApp()
+    void renderApp()
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to parse file'
     console.error('Parse error:', err)
@@ -223,10 +377,24 @@ function showError(message: string): void {
   app.appendChild(errorZone)
 }
 
-function renderApp(): void {
+async function renderApp(): Promise<void> {
   const token = getMapboxToken()
-  if (!token || currentWalks.length === 0) return
+  if (!token) return
+  if (currentWalks.length === 0) {
+    // Empty state — typically reached after the user archived every
+    // walk in a multi-walk file and saved. The previous map/walk-list
+    // DOM would otherwise stay frozen on screen with no signal that
+    // the file is now empty. Fall through to the dropzone so the user
+    // can load another file without a manual home click.
+    detachAllEdit()
+    if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
+    if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
+    app.textContent = ''
+    activeDropZone = createDropZone(app, handleFile)
+    return
+  }
 
+  detachAllEdit()
   if (activeDropZone) { activeDropZone.stop(); activeDropZone = null }
   if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
   if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
@@ -244,6 +412,9 @@ function renderApp(): void {
   })
   layout.headerControls.appendChild(privacyZone.container)
   createMoonToggle(layout.headerControls)
+  if (enableEdit) {
+    await ensureEditMounted(layout.headerControls)
+  }
 
   function applyPrivacy(walk: Walk): Walk {
     const meters = privacyZone.getMeters()
@@ -256,6 +427,37 @@ function renderApp(): void {
 
   const mapRenderer = createMapRenderer(layout.mapContainer, token)
   activeMapRenderer = mapRenderer
+
+  // Build a per-walk refreshPreview that applies BOTH staged mods and
+  // any in-progress trim drag values. Trim handles call this with
+  // liveTrim during drag; we synthesize matching trim ops onto the
+  // mods list so applyMods produces the same shape it will produce
+  // on dragend (when the values land in staging via push). This keeps
+  // the polyline live during drag instead of staying at the un-trimmed
+  // shape until release.
+  function buildRefreshPreview(walk: Walk): (live?: LiveTrim) => void {
+    return (live) => {
+      let displayWalk = walk
+      if (editApi) {
+        const mods = [...editApi.staging.list()]
+        if (live?.startMeters && live.startMeters > 0) {
+          mods.push({
+            id: '__live_start', at: 0, op: 'trim_route_start',
+            walkId: walk.id, payload: { meters: live.startMeters },
+          })
+        }
+        if (live?.endMeters && live.endMeters > 0) {
+          mods.push({
+            id: '__live_end', at: 0, op: 'trim_route_end',
+            walkId: walk.id, payload: { meters: live.endMeters },
+          })
+        }
+        const tended = editApi.applyMods(walk, mods)
+        if (tended) displayWalk = tended
+      }
+      mapRenderer.showWalk(applyPrivacy(displayWalk), { privacyFade: privacyZone.getMeters() > 0 })
+    }
+  }
 
   // Pans the map to a photo's coordinates when the user taps a
   // thumbnail in the Photos panel. Keeps the current zoom if it's
@@ -270,18 +472,53 @@ function renderApp(): void {
   }
 
   if (currentWalks.length > 1) {
-    rerender = renderMultiWalk(layout, mapRenderer, token, applyPrivacy, onPhotoSelect)
+    rerender = renderMultiWalk(layout, mapRenderer, token, applyPrivacy, onPhotoSelect, buildRefreshPreview)
   } else {
     const walk = currentWalks[0]
+    let displayWalk = walk
+    if (editApi) {
+      const tended = editApi.applyMods(walk, editApi.staging.list())
+      if (tended) displayWalk = tended
+    }
     const pf = privacyZone.getMeters() > 0
-    mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
-    renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
+    mapRenderer.showWalk(applyPrivacy(displayWalk), { privacyFade: pf })
+    renderPanels(layout.sidebar, displayWalk, currentManifest, currentUnit, onPhotoSelect)
+
+    if (editApi) {
+      detachWalkUI()
+      detachEdit = editApi.attachToWalkUI({
+        walk,
+        rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
+        sidebar: layout.sidebar,
+        map: mapRenderer.getMap(),
+        refreshPreview: buildRefreshPreview(walk),
+      })
+    }
 
     rerender = () => {
+      let displayWalk = walk
+      if (editApi) {
+        const tended = editApi.applyMods(walk, editApi.staging.list())
+        if (tended) displayWalk = tended
+      }
       const pf = privacyZone.getMeters() > 0
-      mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
-      renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
+      mapRenderer.showWalk(applyPrivacy(displayWalk), { privacyFade: pf })
+      renderPanels(layout.sidebar, displayWalk, currentManifest, currentUnit, onPhotoSelect)
+      if (editApi) {
+        detachWalkUI()
+        detachEdit = editApi.attachToWalkUI({
+          walk,
+          rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
+          sidebar: layout.sidebar,
+          map: mapRenderer.getMap(),
+          refreshPreview: buildRefreshPreview(walk),
+        })
+      }
     }
+  }
+
+  if (editApi) {
+    detachStagingSub = editApi.staging.subscribe(() => rerender())
   }
 }
 
@@ -291,6 +528,7 @@ function renderMultiWalk(
   token: string,
   applyPrivacy: (walk: Walk) => Walk,
   onPhotoSelect: (photo: WalkPhoto) => void,
+  buildRefreshPreview: (walk: Walk) => (live?: LiveTrim) => void,
 ): () => void {
   let mode: 'list' | 'overlay' = 'list'
   let selectedWalk: Walk | null = null
@@ -310,10 +548,29 @@ function renderMultiWalk(
 
     walkList = createWalkList(layout.sidebar, currentWalks, (walk) => {
       selectedWalk = walk
+      let displayWalk = walk
+      if (editApi) {
+        const tended = editApi.applyMods(walk, editApi.staging.list())
+        if (tended) displayWalk = tended
+      }
       const pf = privacyZone.getMeters() > 0
-      mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
-      renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
+      mapRenderer.showWalk(applyPrivacy(displayWalk), { privacyFade: pf })
+      renderPanels(layout.sidebar, displayWalk, currentManifest, currentUnit, onPhotoSelect)
+      if (editApi) {
+        detachWalkUI()
+        detachEdit = editApi.attachToWalkUI({
+          walk,
+          rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
+          sidebar: layout.sidebar,
+          map: mapRenderer.getMap(),
+          refreshPreview: buildRefreshPreview(walk),
+        })
+      }
     }, currentUnit)
+
+    if (editApi) {
+      editApi.attachToWalkListUI({ walks: currentWalks, sidebar: layout.sidebar })
+    }
 
     const selectIdx = selectedWalk ? currentWalks.indexOf(selectedWalk) : 0
     walkList.select(selectIdx >= 0 ? selectIdx : 0)

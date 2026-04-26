@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseGPX } from '../../src/parsers/gpx'
+import { parseGPX, parseGPXWithAst } from '../../src/parsers/gpx'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 
@@ -189,5 +189,21 @@ describe('parseGPX', () => {
     it('throws an error for GPX with no trackpoints', () => {
       expect(() => parseGPX(EMPTY_TRACK_GPX)).toThrow('No trackpoints found in GPX file')
     })
+  })
+})
+
+describe('parseGPXWithAst', () => {
+  it('returns walks AND raw XML AST', () => {
+    const xml = `<?xml version="1.0"?>
+<gpx version="1.1" creator="test">
+  <trk><name>Test</name><trkseg>
+    <trkpt lat="0" lon="0"><ele>100</ele><time>2024-01-01T00:00:00Z</time></trkpt>
+    <trkpt lat="0.001" lon="0"><ele>105</ele><time>2024-01-01T00:01:00Z</time></trkpt>
+  </trkseg></trk>
+</gpx>`
+    const result = parseGPXWithAst(xml)
+    expect(result.walks).toHaveLength(1)
+    expect(result.ast).toBeDefined()
+    expect(typeof result.ast).toBe('object')
   })
 })

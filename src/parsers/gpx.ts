@@ -18,7 +18,7 @@ interface RawTrack {
   trkseg: RawTrackSegment | RawTrackSegment[]
 }
 
-interface ParsedGPX {
+interface RawParsedGPX {
   gpx: {
     trk: RawTrack | RawTrack[]
   }
@@ -93,7 +93,7 @@ export function parseGPX(xmlString: string): Walk[] {
     removeNSPrefix: true,
   })
 
-  const parsed = parser.parse(xmlString) as ParsedGPX
+  const parsed = parser.parse(xmlString) as RawParsedGPX
 
   if (!parsed.gpx?.trk) {
     throw new Error('No trackpoints found in GPX file')
@@ -153,4 +153,20 @@ export function parseGPX(xmlString: string): Walk[] {
   }
 
   return walks
+}
+
+export interface ParsedGPX {
+  walks: Walk[]
+  ast: unknown
+}
+
+export function parseGPXWithAst(xml: string): ParsedGPX {
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: '@_',
+    removeNSPrefix: true,
+  })
+  const ast = parser.parse(xml)
+  const walks = parseGPX(xml)
+  return { walks, ast }
 }

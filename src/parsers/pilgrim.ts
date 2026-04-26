@@ -414,6 +414,11 @@ export async function parsePilgrim(
       speedUnit: manifestRaw.preferences.speedUnit,
       energyUnit: manifestRaw.preferences.energyUnit,
     },
+    archived: Array.isArray(manifestRaw.archived) ? manifestRaw.archived : [],
+    modifications: Array.isArray(manifestRaw.modifications) ? manifestRaw.modifications : [],
+    archivedCount: typeof manifestRaw.archivedCount === 'number'
+      ? manifestRaw.archivedCount
+      : (Array.isArray(manifestRaw.archived) ? manifestRaw.archived.length : 0),
   }
 
   const photoUrls = new Map<string, string>()

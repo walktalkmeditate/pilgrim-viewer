@@ -1,0 +1,137 @@
+/* Tend toggle button */
+.tend-toggle {
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  padding: 0.4rem 0.8rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 2px;
+  letter-spacing: 0.05em;
+}
+.tend-toggle:hover { background: rgba(128, 128, 128, 0.1); }
+.tend-toggle.active { background: currentColor; color: var(--parchment); }
+
+/* Body class flags */
+body.tend-on .panel-x,
+body.tend-on .photo-x,
+body.tend-on .voice-x,
+body.tend-on .pause-x,
+body.tend-on .activity-x,
+body.tend-on .walk-list-x { display: inline-flex; }
+
+.panel-x, .photo-x, .voice-x, .pause-x, .activity-x, .walk-list-x {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem; height: 1.2rem;
+  border: none; background: transparent;
+  color: rgba(128, 128, 128, 0.55);
+  cursor: pointer;
+  font-size: 1rem; line-height: 1;
+}
+.panel-x:hover, .photo-x:hover, .voice-x:hover,
+.pause-x:hover, .activity-x:hover, .walk-list-x:hover {
+  color: inherit;
+}
+
+body.tend-on .editable-text {
+  border-bottom: 1px dotted rgba(128, 128, 128, 0.4);
+  cursor: text;
+}
+body.tend-on .editable-text:hover { border-bottom-color: currentColor; }
+
+.editable-input {
+  width: 100%;
+  font-family: inherit;
+  font-size: inherit;
+  background: transparent;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  padding: 0.25rem;
+  color: inherit;
+  resize: vertical;
+}
+
+/* Walk list — pending archive */
+.walk-list-item.pending-archive {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.pending-archive-tag {
+  font-size: 0.7rem;
+  margin-left: 0.5rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(128, 128, 128, 0.7);
+}
+
+/* Staging drawer */
+.staging-drawer {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--parchment);
+  border-top: 1px solid rgba(128, 128, 128, 0.3);
+  padding: 0.75rem 1rem;
+  z-index: 100;
+  display: flex; gap: 1rem; align-items: center;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+}
+.staging-drawer-count {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.staging-drawer-list {
+  flex: 1;
+  display: flex; flex-direction: column; gap: 0.2rem;
+  max-height: 6rem; overflow-y: auto;
+  font-size: 0.85rem;
+}
+.staging-drawer-item { display: flex; gap: 0.5rem; align-items: center; }
+.staging-drawer-item button { background: transparent; border: none; color: inherit; cursor: pointer; }
+
+.staging-drawer-actions { display: flex; gap: 0.5rem; align-items: center; white-space: nowrap; }
+.staging-drawer-save {
+  padding: 0.4rem 1rem; border: 1px solid currentColor; background: transparent;
+  color: inherit; cursor: pointer; font-family: inherit;
+}
+.staging-drawer-save:hover { background: currentColor; color: var(--parchment); }
+.staging-drawer-discard {
+  background: transparent; border: none; color: rgba(128, 128, 128, 0.7);
+  cursor: pointer; font-family: inherit;
+}
+.staging-drawer-discard:hover { color: inherit; }
+.staging-drawer-history { display: flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; }
+
+/* Trim handles */
+.trim-handle {
+  width: 18px; height: 18px;
+  background: var(--accent, #b08968);
+  border: 2px solid var(--parchment);
+  border-radius: 50%;
+  cursor: ew-resize;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.trim-label {
+  background: var(--parchment);
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+  font-size: 0.75rem;
+  border-radius: 2px;
+}
+
+/* Modal */
+.archive-modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+}
+.archive-modal {
+  background: var(--parchment);
+  padding: 1.5rem 2rem;
+  max-width: 500px;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+}
+.archive-modal h2 { font-family: 'Cormorant Garamond', serif; margin: 0 0 1rem; }
+.archive-modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem; }

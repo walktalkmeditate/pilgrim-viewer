@@ -889,3 +889,68 @@ describe('parsePilgrim photos', () => {
     expect(revoked.sort()).toEqual(['stub:err-0', 'stub:err-1'])
   })
 })
+
+describe('parsePilgrim — manifest extensions', () => {
+  it('defaults archived and modifications to empty arrays for legacy files', async () => {
+    // #when — build a minimal pilgrim ZIP with no archived/modifications keys
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify({
+      schemaVersion: '1.0',
+      exportDate: 1745625600,
+      appVersion: '1.0.0',
+      walkCount: 0,
+      preferences: {
+        distanceUnit: 'km', altitudeUnit: 'm',
+        speedUnit: 'min/km', energyUnit: 'kcal',
+      },
+    }))
+    const buf = await zip.generateAsync({ type: 'arraybuffer' })
+
+    const result = await parsePilgrim(buf)
+
+    // #then
+    expect(result.manifest.archived).toEqual([])
+    expect(result.manifest.modifications).toEqual([])
+    expect(result.manifest.archivedCount).toBe(0)
+  })
+
+  it('preserves archived and modifications when present', async () => {
+    // #when
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify({
+      schemaVersion: '1.0',
+      exportDate: 1745625600,
+      appVersion: '1.0.0',
+      walkCount: 0,
+      archivedCount: 1,
+      preferences: {
+        distanceUnit: 'km', altitudeUnit: 'm',
+        speedUnit: 'min/km', energyUnit: 'kcal',
+      },
+      archived: [{
+        id: 'abc-123',
+        startDate: 1773867600,
+        endDate: 1773870120,
+        archivedAt: 1745625600,
+        stats: {
+          distance: 20159, activeDuration: 2460,
+          talkDuration: 125, meditateDuration: 900, steps: 26879,
+        },
+      }],
+      modifications: [{
+        id: 'mod-1', at: 1745625500000,
+        op: 'archive_walk', walkId: 'abc-123', payload: {},
+      }],
+    }))
+    const buf = await zip.generateAsync({ type: 'arraybuffer' })
+
+    const result = await parsePilgrim(buf)
+
+    // #then
+    expect(result.manifest.archived).toHaveLength(1)
+    expect(result.manifest.archived![0].id).toBe('abc-123')
+    expect(result.manifest.modifications).toHaveLength(1)
+    expect(result.manifest.modifications![0].op).toBe('archive_walk')
+    expect(result.manifest.archivedCount).toBe(1)
+  })
+})
