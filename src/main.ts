@@ -29,6 +29,13 @@ const isLocalDev = location.hostname === 'localhost' || location.hostname === '1
 const enableEdit = isEditHost || (isLocalDev && new URLSearchParams(location.search).has('edit'))
 
 let editApi: import('./edit').EditApi | null = null
+let detachEdit: (() => void) | null = null
+function runDetachEdit(): void {
+  if (detachEdit) {
+    detachEdit()
+    detachEdit = null
+  }
+}
 async function ensureEditMounted(headerControls: HTMLElement): Promise<void> {
   if (!enableEdit || editApi) return
   const { mountEditLayer } = await import('./edit')
@@ -127,7 +134,7 @@ const pilgrimViewer: PilgrimViewerAPI = {
           }
         : undefined
 
-      renderApp()
+      void renderApp()
     } catch (err) {
       console.error('pilgrimViewer.loadData failed:', err)
     }
@@ -155,6 +162,8 @@ function goHome(): void {
   // skipped — otherwise a slow parse that resolves after the user
   // went home would swap the app back into walk view.
   handleFileGeneration += 1
+  runDetachEdit()
+  editApi = null
   if (activeDropZone) { activeDropZone.stop(); activeDropZone = null }
   if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
   if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
@@ -175,20 +184,20 @@ async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
     let newWalks: Walk[]
     let newRawWalks: unknown[] = []
     let newManifest: PilgrimManifest | undefined
+    let pendingPilgrimBuffer: ArrayBuffer | undefined
+    let pendingGpxXml: string | undefined
+
     if (name.endsWith('.pilgrim')) {
-      originalPilgrimBuffer = buffer
-      originalGpxXml = undefined
+      pendingPilgrimBuffer = buffer
       const result = await parsePilgrim(buffer)
       newWalks = result.walks
       newRawWalks = result.rawWalks
       newManifest = result.manifest
     } else {
-      originalPilgrimBuffer = undefined
       const text = new TextDecoder().decode(buffer)
-      originalGpxXml = text
+      pendingGpxXml = text
       newWalks = parseGPX(text)
     }
-    currentLoadedFilename = name
 
     if (generation !== handleFileGeneration) {
       // A newer handleFile (or goHome) superseded this call while we
@@ -210,6 +219,9 @@ async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
     currentWalks = newWalks
     currentRawWalks = newRawWalks
     currentManifest = newManifest
+    originalPilgrimBuffer = pendingPilgrimBuffer
+    originalGpxXml = pendingGpxXml
+    currentLoadedFilename = name
     releaseWalkPhotoURLs(previousWalks)
 
     if (currentWalks[0].source === 'pilgrim') {
@@ -223,11 +235,11 @@ async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
     const token = getMapboxToken()
     if (!token) {
       app.textContent = ''
-      renderTokenPrompt(app, () => renderApp())
+      renderTokenPrompt(app, () => { void renderApp() })
       return
     }
 
-    renderApp()
+    void renderApp()
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to parse file'
     console.error('Parse error:', err)
@@ -262,10 +274,11 @@ function showError(message: string): void {
   app.appendChild(errorZone)
 }
 
-function renderApp(): void {
+async function renderApp(): Promise<void> {
   const token = getMapboxToken()
   if (!token || currentWalks.length === 0) return
 
+  runDetachEdit()
   if (activeDropZone) { activeDropZone.stop(); activeDropZone = null }
   if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
   if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
@@ -283,7 +296,9 @@ function renderApp(): void {
   })
   layout.headerControls.appendChild(privacyZone.container)
   createMoonToggle(layout.headerControls)
-  void ensureEditMounted(layout.headerControls)
+  if (enableEdit) {
+    await ensureEditMounted(layout.headerControls)
+  }
 
   function applyPrivacy(walk: Walk): Walk {
     const meters = privacyZone.getMeters()
@@ -318,7 +333,8 @@ function renderApp(): void {
     renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
 
     if (editApi && walk.source === 'pilgrim') {
-      editApi.attachToWalkUI({
+      runDetachEdit()
+      detachEdit = editApi.attachToWalkUI({
         walk,
         rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
         sidebar: layout.sidebar,
@@ -332,7 +348,8 @@ function renderApp(): void {
       mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
       renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
       if (editApi && walk.source === 'pilgrim') {
-        editApi.attachToWalkUI({
+        runDetachEdit()
+        detachEdit = editApi.attachToWalkUI({
           walk,
           rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
           sidebar: layout.sidebar,
