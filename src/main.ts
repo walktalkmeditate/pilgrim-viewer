@@ -30,10 +30,15 @@ const enableEdit = isEditHost || (isLocalDev && new URLSearchParams(location.sea
 
 let editApi: import('./edit').EditApi | null = null
 let detachEdit: (() => void) | null = null
+let detachStagingSub: (() => void) | null = null
 function runDetachEdit(): void {
   if (detachEdit) {
     detachEdit()
     detachEdit = null
+  }
+  if (detachStagingSub) {
+    detachStagingSub()
+    detachStagingSub = null
   }
 }
 async function ensureEditMounted(headerControls: HTMLElement): Promise<void> {
@@ -373,7 +378,7 @@ async function renderApp(): Promise<void> {
   }
 
   if (editApi) {
-    editApi.staging.subscribe(() => rerender())
+    detachStagingSub = editApi.staging.subscribe(() => rerender())
   }
 }
 
