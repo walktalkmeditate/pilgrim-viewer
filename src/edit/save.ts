@@ -214,6 +214,45 @@ export async function serializeTendedPilgrim(input: SerializeInput): Promise<Ser
 
   zip.file('manifest.json', JSON.stringify(newManifest))
 
+  validatePilgrimManifest(newManifest)
+
   const blob = await zip.generateAsync({ type: 'blob' })
   return { blob, filename: tendedFilename(originalFilename) }
+}
+
+export function validatePilgrimManifest(raw: unknown): void {
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('manifest must be an object')
+  }
+  const m = raw as Record<string, unknown>
+  if (m.schemaVersion !== '1.0') {
+    throw new Error(`manifest.schemaVersion must be "1.0" (got ${JSON.stringify(m.schemaVersion)})`)
+  }
+  if (typeof m.exportDate !== 'number') throw new Error('manifest.exportDate must be a number')
+  if (typeof m.appVersion !== 'string') throw new Error('manifest.appVersion must be a string')
+  if (typeof m.walkCount !== 'number') throw new Error('manifest.walkCount must be a number')
+  if (!m.preferences || typeof m.preferences !== 'object') {
+    throw new Error('manifest.preferences must be an object')
+  }
+  const p = m.preferences as Record<string, unknown>
+  for (const key of ['distanceUnit', 'altitudeUnit', 'speedUnit', 'energyUnit']) {
+    if (typeof p[key] !== 'string') {
+      throw new Error(`manifest.preferences.${key} must be a string`)
+    }
+  }
+}
+
+export function triggerDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  try {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
 }
