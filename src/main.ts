@@ -97,6 +97,13 @@ window.addEventListener('pilgrim-edit-save-requested', async () => {
   if (currentWalks.length === 0) return
   const source = currentWalks[0].source
   const originalFilename = currentLoadedFilename ?? (source === 'pilgrim' ? 'walk.pilgrim' : 'walk.gpx')
+  // Capture the file-load generation at save start. The post-save event
+  // handler reads this back to bail if the user dropped a different file
+  // (or went home) while the save was in flight — without this guard,
+  // the handler would clobber the new file's state with the old file's
+  // saved data (and revoke the new file's blob URLs out from under the
+  // live DOM).
+  const generationAtSave = handleFileGeneration
   try {
     if (source === 'pilgrim') {
       if (!currentManifest || !originalPilgrimBuffer) return
@@ -106,10 +113,14 @@ window.addEventListener('pilgrim-edit-save-requested', async () => {
         manifest: currentManifest,
         rawWalks: currentRawWalks,
         originalFilename,
+        generation: generationAtSave,
       })
     } else {
       if (!originalGpxXml) return
-      await editApi.saveAll({ source: 'gpx', originalXml: originalGpxXml, originalFilename })
+      await editApi.saveAll({
+        source: 'gpx', originalXml: originalGpxXml, originalFilename,
+        generation: generationAtSave,
+      })
     }
   } catch (err) {
     // Validation, ZIP corruption, or any other save-time failure. Surface
@@ -131,11 +142,27 @@ window.addEventListener('pilgrim-edit-save-requested', async () => {
 window.addEventListener('pilgrim-edit-saved', async (event) => {
   if (!editApi) return
   const detail = (event as CustomEvent).detail as
-    | { source: 'pilgrim'; buffer: ArrayBuffer; filename: string }
-    | { source: 'gpx'; xml: string; filename: string }
+    | { source: 'pilgrim'; buffer: ArrayBuffer; filename: string; generation: number }
+    | { source: 'gpx'; xml: string; filename: string; generation: number }
+  // Bail if the user swapped files (or went home, or used the JS
+  // bridge to load new data) while this save was in flight. Without
+  // this guard the handler would overwrite the NEW file's state with
+  // the OLD file's saved data — revoking the new file's blob URLs
+  // out from under the live DOM.
+  if (detail.generation !== handleFileGeneration) {
+    if (editApi) editApi.staging.clear()
+    return
+  }
   try {
     if (detail.source === 'pilgrim') {
       const reParsed = await parsePilgrim(detail.buffer)
+      // Re-check after the await: parsePilgrim is async, so a file swap
+      // could have raced in here too.
+      if (detail.generation !== handleFileGeneration) {
+        releaseWalkPhotoURLs(reParsed.walks)
+        if (editApi) editApi.staging.clear()
+        return
+      }
       releaseWalkPhotoURLs(currentWalks)
       currentWalks = reParsed.walks
       currentRawWalks = reParsed.rawWalks
@@ -352,7 +379,20 @@ function showError(message: string): void {
 
 async function renderApp(): Promise<void> {
   const token = getMapboxToken()
-  if (!token || currentWalks.length === 0) return
+  if (!token) return
+  if (currentWalks.length === 0) {
+    // Empty state — typically reached after the user archived every
+    // walk in a multi-walk file and saved. The previous map/walk-list
+    // DOM would otherwise stay frozen on screen with no signal that
+    // the file is now empty. Fall through to the dropzone so the user
+    // can load another file without a manual home click.
+    detachAllEdit()
+    if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
+    if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
+    app.textContent = ''
+    activeDropZone = createDropZone(app, handleFile)
+    return
+  }
 
   detachAllEdit()
   if (activeDropZone) { activeDropZone.stop(); activeDropZone = null }

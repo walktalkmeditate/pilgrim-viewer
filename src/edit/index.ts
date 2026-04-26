@@ -43,6 +43,12 @@ export interface SaveOptions {
   manifest?: PilgrimManifest
   rawWalks?: unknown[]
   originalFilename: string
+  // Caller-supplied tag echoed back in the `pilgrim-edit-saved` event
+  // detail so the post-save state-refresh handler can detect "user
+  // dropped a different file while this save was in flight" and bail
+  // instead of clobbering the new file's state. main.ts uses the
+  // `handleFileGeneration` counter for this.
+  generation?: number
 }
 
 export function mountEditLayer(headerControls: HTMLElement, app: HTMLElement): EditApi {
@@ -119,12 +125,12 @@ export function mountEditLayer(headerControls: HTMLElement, app: HTMLElement): E
       if (opts.source === 'pilgrim') {
         const savedBuffer = await result.blob.arrayBuffer()
         window.dispatchEvent(new CustomEvent('pilgrim-edit-saved', {
-          detail: { source: 'pilgrim', buffer: savedBuffer, filename: result.filename },
+          detail: { source: 'pilgrim', buffer: savedBuffer, filename: result.filename, generation: opts.generation ?? 0 },
         }))
       } else {
         const savedXml = await result.blob.text()
         window.dispatchEvent(new CustomEvent('pilgrim-edit-saved', {
-          detail: { source: 'gpx', xml: savedXml, filename: result.filename },
+          detail: { source: 'gpx', xml: savedXml, filename: result.filename, generation: opts.generation ?? 0 },
         }))
       }
       // Note: staging.clear() is fired by the main.ts handler AFTER it
