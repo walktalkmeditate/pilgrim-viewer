@@ -17,6 +17,22 @@ function uuid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
+function coalesceKey(mod: Pick<Modification, 'op' | 'walkId' | 'payload'>): string | null {
+  switch (mod.op) {
+    case 'trim_route_start':
+    case 'trim_route_end':
+    case 'edit_intention':
+    case 'edit_reflection_text':
+      return `${mod.op}|${mod.walkId ?? ''}`
+    case 'edit_transcription': {
+      const p = mod.payload as { recordingStartDate: number }
+      return `${mod.op}|${mod.walkId ?? ''}|${p.recordingStartDate}`
+    }
+    default:
+      return null
+  }
+}
+
 export function createStaging(): Staging {
   const mods: Modification[] = []
   const listeners = new Set<() => void>()
@@ -27,6 +43,16 @@ export function createStaging(): Staging {
 
   return {
     push(mod) {
+      const key = coalesceKey(mod)
+      if (key !== null) {
+        const existingIdx = mods.findIndex(m => coalesceKey(m) === key)
+        if (existingIdx >= 0) {
+          const stored: Modification = { ...mod, id: mods[existingIdx].id, at: Date.now() } as Modification
+          mods[existingIdx] = stored
+          notify()
+          return stored
+        }
+      }
       const stored: Modification = { ...mod, id: uuid(), at: Date.now() } as Modification
       mods.push(stored)
       notify()
