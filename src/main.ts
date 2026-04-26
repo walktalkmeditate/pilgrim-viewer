@@ -31,11 +31,24 @@ const enableEdit = isEditHost || (isLocalDev && new URLSearchParams(location.sea
 let editApi: import('./edit').EditApi | null = null
 let detachEdit: (() => void) | null = null
 let detachStagingSub: (() => void) | null = null
-function runDetachEdit(): void {
+
+// Per-render cleanup: drops the trim-handle markers (and any other
+// DOM hooks `attachToWalkUI` returned). Called inside rerender BEFORE
+// reattaching so handles don't accumulate across privacy/unit toggles.
+function detachWalkUI(): void {
   if (detachEdit) {
     detachEdit()
     detachEdit = null
   }
+}
+
+// Per-app-mount cleanup: also drops the staging subscription so we
+// don't leak listeners across renderApp() invocations. Called at the
+// top of renderApp (before mounting a fresh layout) and on goHome.
+// MUST NOT be called from rerender — that would orphan the subscription
+// after a single rerender, breaking live preview on subsequent mods.
+function detachAllEdit(): void {
+  detachWalkUI()
   if (detachStagingSub) {
     detachStagingSub()
     detachStagingSub = null
@@ -167,7 +180,7 @@ function goHome(): void {
   // skipped — otherwise a slow parse that resolves after the user
   // went home would swap the app back into walk view.
   handleFileGeneration += 1
-  runDetachEdit()
+  detachAllEdit()
   editApi = null
   if (activeDropZone) { activeDropZone.stop(); activeDropZone = null }
   if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
@@ -283,7 +296,7 @@ async function renderApp(): Promise<void> {
   const token = getMapboxToken()
   if (!token || currentWalks.length === 0) return
 
-  runDetachEdit()
+  detachAllEdit()
   if (activeDropZone) { activeDropZone.stop(); activeDropZone = null }
   if (activeMapRenderer) { activeMapRenderer.remove(); activeMapRenderer = null }
   if (activeOverlayRenderer) { activeOverlayRenderer.remove(); activeOverlayRenderer = null }
@@ -335,8 +348,7 @@ async function renderApp(): Promise<void> {
     const walk = currentWalks[0]
     let displayWalk = walk
     if (editApi) {
-      const { applyMods } = await import('./edit/applier')
-      const tended = applyMods(walk, editApi.staging.list())
+      const tended = editApi.applyMods(walk, editApi.staging.list())
       if (tended) displayWalk = tended
     }
     const pf = privacyZone.getMeters() > 0
@@ -344,7 +356,7 @@ async function renderApp(): Promise<void> {
     renderPanels(layout.sidebar, displayWalk, currentManifest, currentUnit, onPhotoSelect)
 
     if (editApi && walk.source === 'pilgrim') {
-      runDetachEdit()
+      detachWalkUI()
       detachEdit = editApi.attachToWalkUI({
         walk,
         rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
@@ -354,18 +366,17 @@ async function renderApp(): Promise<void> {
       })
     }
 
-    rerender = async () => {
+    rerender = () => {
       let displayWalk = walk
       if (editApi) {
-        const { applyMods } = await import('./edit/applier')
-        const tended = applyMods(walk, editApi.staging.list())
+        const tended = editApi.applyMods(walk, editApi.staging.list())
         if (tended) displayWalk = tended
       }
       const pf = privacyZone.getMeters() > 0
       mapRenderer.showWalk(applyPrivacy(displayWalk), { privacyFade: pf })
       renderPanels(layout.sidebar, displayWalk, currentManifest, currentUnit, onPhotoSelect)
       if (editApi && walk.source === 'pilgrim') {
-        runDetachEdit()
+        detachWalkUI()
         detachEdit = editApi.attachToWalkUI({
           walk,
           rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
@@ -407,9 +418,24 @@ function renderMultiWalk(
 
     walkList = createWalkList(layout.sidebar, currentWalks, (walk) => {
       selectedWalk = walk
+      let displayWalk = walk
+      if (editApi) {
+        const tended = editApi.applyMods(walk, editApi.staging.list())
+        if (tended) displayWalk = tended
+      }
       const pf = privacyZone.getMeters() > 0
-      mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
-      renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
+      mapRenderer.showWalk(applyPrivacy(displayWalk), { privacyFade: pf })
+      renderPanels(layout.sidebar, displayWalk, currentManifest, currentUnit, onPhotoSelect)
+      if (editApi && walk.source === 'pilgrim') {
+        detachWalkUI()
+        detachEdit = editApi.attachToWalkUI({
+          walk,
+          rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
+          sidebar: layout.sidebar,
+          map: mapRenderer.getMap(),
+          refreshPreview: () => mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: privacyZone.getMeters() > 0 }),
+        })
+      }
     }, currentUnit)
 
     if (editApi) {

@@ -8,13 +8,18 @@ import {
   attachPauseDeletes, attachActivityDeletes, attachInlineEditors,
   attachWalkListDeletes,
 } from './affordances'
-import { attachTrimHandles, getLiveTrim } from './trim-handles'
-import type { Walk, PilgrimManifest } from '../parsers/types'
+import { attachTrimHandles } from './trim-handles'
+import { applyMods } from './applier'
+import type { Walk, Modification, PilgrimManifest } from '../parsers/types'
 import type mapboxgl from 'mapbox-gl'
 
 export interface EditApi {
   staging: ReturnType<typeof createStaging>
   toggle: ReturnType<typeof createTendToggle>
+  // Pure preview transform — given a walk and the current pending mods,
+  // returns the walk as it would look post-save (or null if archived).
+  // Re-exported so callers don't need to dynamic-import the applier.
+  applyMods(walk: Walk, mods: Modification[]): Walk | null
   attachToWalkUI(opts: {
     walk: Walk
     rawWalk?: unknown
@@ -57,6 +62,7 @@ export function mountEditLayer(headerControls: HTMLElement, app: HTMLElement): E
   const api: EditApi = {
     staging,
     toggle,
+    applyMods,
     attachToWalkUI({ walk, sidebar, map, refreshPreview }) {
       const cleanups: (() => void)[] = []
       attachSectionDeletes({ staging, walk, sidebar })
@@ -104,5 +110,3 @@ export function mountEditLayer(headerControls: HTMLElement, app: HTMLElement): E
 
   return api
 }
-
-export { getLiveTrim }

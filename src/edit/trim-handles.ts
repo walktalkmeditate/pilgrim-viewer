@@ -21,17 +21,6 @@ function getLine(walk: Walk): number[][] {
   return []
 }
 
-const liveTrim: { startMeters: number; endMeters: number } = { startMeters: 0, endMeters: 0 }
-
-function setPreviewTrim(position: 'start' | 'end', meters: number): void {
-  if (position === 'start') liveTrim.startMeters = meters
-  else liveTrim.endMeters = meters
-}
-
-export function getLiveTrim(): { startMeters: number; endMeters: number } {
-  return { ...liveTrim }
-}
-
 function computeTrimMeters(line: number[][], position: 'start' | 'end', dragged: number[]): number {
   let bestIdx = 0
   let bestDist = Infinity
@@ -79,7 +68,6 @@ function createMarker(ctx: TrimHandleContext, position: 'start' | 'end'): mapbox
     const meters = computeTrimMeters(line, position, [lngLat.lng, lngLat.lat])
     lastMeters = meters
     label.textContent = `−${Math.round(meters)}m from ${position}`
-    setPreviewTrim(position, meters)
     ctx.refreshPreview()
   })
 
@@ -90,7 +78,6 @@ function createMarker(ctx: TrimHandleContext, position: 'start' | 'end'): mapbox
       walkId: ctx.walk.id,
       payload: { meters: Math.round(lastMeters) },
     })
-    setPreviewTrim(position, 0)
   })
 
   return marker

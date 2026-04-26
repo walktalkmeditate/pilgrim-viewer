@@ -18,6 +18,10 @@ function describeMod(mod: Modification): string {
     case 'edit_intention': return `Edited intention`
     case 'edit_reflection_text': return `Edited reflection`
     case 'edit_transcription': return `Edited transcription`
+    default: {
+      const _exhaustive: never = mod.op
+      return `Unknown change (${_exhaustive})`
+    }
   }
 }
 

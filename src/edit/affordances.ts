@@ -60,7 +60,9 @@ export function attachSectionDeletes(ctx: AffordanceContext): void {
 
 export function attachPhotoDeletes(ctx: AffordanceContext): void {
   if (!ctx.walk.photos) return
-  const items = ctx.sidebar.querySelectorAll('.photo-thumbnail, .photo-item')
+  // Photos panel iterates walk.photos directly (`renderPhotosPanel`),
+  // so DOM index aligns with the array.
+  const items = ctx.sidebar.querySelectorAll('.photos-grid-item')
   Array.from(items).forEach((el, idx) => {
     const photo = ctx.walk.photos![idx]
     if (!photo) return
@@ -74,9 +76,13 @@ export function attachPhotoDeletes(ctx: AffordanceContext): void {
 }
 
 export function attachVoiceRecordingDeletes(ctx: AffordanceContext): void {
-  const items = ctx.sidebar.querySelectorAll('.voice-recording, .transcription-item')
+  // Transcriptions panel only renders entries that HAVE a transcription
+  // (`renderTranscriptionsPanel` filters on `r.transcription`), so the
+  // DOM list maps to the filtered subset, not `walk.voiceRecordings`.
+  const visibleRecs = ctx.walk.voiceRecordings.filter(r => r.transcription)
+  const items = ctx.sidebar.querySelectorAll('.transcription-entry')
   Array.from(items).forEach((el, idx) => {
-    const rec = ctx.walk.voiceRecordings[idx]
+    const rec = visibleRecs[idx]
     if (!rec) return
     const x = makeXButton('voice-x', 'Delete voice recording')
     x.addEventListener('click', e => {
@@ -88,34 +94,19 @@ export function attachVoiceRecordingDeletes(ctx: AffordanceContext): void {
   })
 }
 
-export function attachPauseDeletes(ctx: AffordanceContext): void {
-  const items = ctx.sidebar.querySelectorAll('.pause-item, .timeline-pause')
-  Array.from(items).forEach((el, idx) => {
-    const pause = ctx.walk.pauses[idx]
-    if (!pause) return
-    const x = makeXButton('pause-x', 'Delete pause')
-    x.addEventListener('click', e => {
-      e.stopPropagation()
-      const sd = Math.floor(pause.startDate.getTime() / 1000)
-      ctx.staging.push({ op: 'delete_pause', walkId: ctx.walk.id, payload: { startDate: sd } })
-    })
-    el.appendChild(x)
-  })
+// Pauses are not rendered as discrete list items in the current viewer
+// timeline panel, so the × affordance has no DOM target. The op still
+// works via the staging API + JSON expert mode; surfacing it in the UI
+// is a v2 concern (would need a dedicated pauses list panel).
+export function attachPauseDeletes(_ctx: AffordanceContext): void {
+  return
 }
 
-export function attachActivityDeletes(ctx: AffordanceContext): void {
-  const items = ctx.sidebar.querySelectorAll('.activity-item, .timeline-activity')
-  Array.from(items).forEach((el, idx) => {
-    const activity = ctx.walk.activities[idx]
-    if (!activity) return
-    const x = makeXButton('activity-x', 'Delete activity segment')
-    x.addEventListener('click', e => {
-      e.stopPropagation()
-      const sd = Math.floor(activity.startDate.getTime() / 1000)
-      ctx.staging.push({ op: 'delete_activity', walkId: ctx.walk.id, payload: { startDate: sd } })
-    })
-    el.appendChild(x)
-  })
+// Activities render as positioned bars inside `.timeline-bar` rather
+// than as list items; per-segment × buttons would be a hostile UX given
+// the visual scale. Same v1/v2 stance as pauses.
+export function attachActivityDeletes(_ctx: AffordanceContext): void {
+  return
 }
 
 export function attachInlineEditors(ctx: AffordanceContext): void {
@@ -131,10 +122,13 @@ export function attachInlineEditors(ctx: AffordanceContext): void {
     })
   }
 
-  // Voice transcriptions
-  const transcriptionEls = ctx.sidebar.querySelectorAll<HTMLElement>('.transcription-text, .voice-transcription')
+  // Voice transcriptions — DOM list is the filtered subset
+  // (recordings with `r.transcription` populated), matching
+  // attachVoiceRecordingDeletes above.
+  const visibleRecs = ctx.walk.voiceRecordings.filter(r => r.transcription)
+  const transcriptionEls = ctx.sidebar.querySelectorAll<HTMLElement>('.transcription-text')
   Array.from(transcriptionEls).forEach((el, idx) => {
-    const rec = ctx.walk.voiceRecordings[idx]
+    const rec = visibleRecs[idx]
     if (!rec || !rec.transcription) return
     attachMultiLineEditor(el, rec.transcription, text => {
       const sd = Math.floor(rec.startDate.getTime() / 1000)
