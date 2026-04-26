@@ -163,6 +163,23 @@ export function createDropZone(
   const quoteRotator = createQuoteRotator(wrapper)
 
   wrapper.appendChild(githubLink)
+
+  const isEditHost = location.hostname.startsWith('edit.')
+  const crossLink = document.createElement('a')
+  crossLink.className = 'cross-link'
+  crossLink.style.fontSize = '0.85rem'
+  crossLink.style.opacity = '0.6'
+  crossLink.style.marginTop = '1rem'
+  crossLink.style.display = 'inline-block'
+  if (isEditHost) {
+    crossLink.textContent = 'View only? Open in the viewer'
+    crossLink.href = `https://view.pilgrimapp.org/${location.search}`
+  } else {
+    crossLink.textContent = 'Tend a file? Open in the editor'
+    crossLink.href = `https://edit.pilgrimapp.org/${location.search}`
+  }
+  wrapper.appendChild(crossLink)
+
   container.appendChild(wrapper)
 
   animation = createRouteAnimation(wrapper)
