@@ -1,8 +1,10 @@
 import JSZip from 'jszip'
+import { XMLParser, XMLBuilder } from 'fast-xml-parser'
 import type { Modification, PilgrimManifest, ArchivedWalk } from '../parsers/types'
 import { walkToArchived } from './archive'
 import { applyMods } from './applier'
 import { parsePilgrimWalkJSON } from '../parsers/pilgrim'
+import { haversineDistance } from '../parsers/geo'
 
 export interface SerializeInput {
   originalBuffer: ArrayBuffer
@@ -255,4 +257,102 @@ export function triggerDownload(blob: Blob, filename: string): void {
   } finally {
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
+}
+
+export interface SerializeGpxInput {
+  originalXml: string
+  modifications: Modification[]
+  originalFilename: string
+}
+
+function asArray<T>(v: T | T[] | undefined): T[] {
+  if (v === undefined) return []
+  return Array.isArray(v) ? v : [v]
+}
+
+function trimTrkpts(trkpts: Record<string, unknown>[], startMeters: number, endMeters: number): Record<string, unknown>[] {
+  if (trkpts.length < 3) return trkpts
+
+  const lat = (p: Record<string, unknown>) => Number(p.lat)
+  const lon = (p: Record<string, unknown>) => Number(p.lon)
+
+  let endIdx = trkpts.length
+  if (endMeters > 0) {
+    let acc = 0
+    for (let i = trkpts.length - 1; i > 0; i--) {
+      acc += haversineDistance(lat(trkpts[i]), lon(trkpts[i]), lat(trkpts[i - 1]), lon(trkpts[i - 1]))
+      if (acc >= endMeters) { endIdx = i; break }
+      if (i === 1) endIdx = 1
+    }
+  }
+
+  let startIdx = 0
+  if (startMeters > 0) {
+    let acc = 0
+    for (let i = 1; i < endIdx; i++) {
+      acc += haversineDistance(lat(trkpts[i - 1]), lon(trkpts[i - 1]), lat(trkpts[i]), lon(trkpts[i]))
+      if (acc >= startMeters) { startIdx = i; break }
+    }
+  }
+
+  if (endIdx - startIdx < 2) {
+    endIdx = Math.min(trkpts.length, startIdx + 2)
+    if (endIdx - startIdx < 2) startIdx = Math.max(0, endIdx - 2)
+  }
+
+  return trkpts.slice(startIdx, endIdx)
+}
+
+export async function serializeTendedGpx(input: SerializeGpxInput): Promise<SerializeOutput> {
+  const { originalXml, modifications, originalFilename } = input
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: '',
+    parseTagValue: true,
+    parseAttributeValue: true,
+  })
+  const ast = parser.parse(originalXml) as Record<string, unknown>
+  const gpx = ast.gpx as Record<string, unknown>
+  if (!gpx) throw new Error('Invalid GPX: missing <gpx> root')
+
+  const wpDeletes = modifications.filter(m => m.op === 'delete_waypoint')
+  if (wpDeletes.length > 0) {
+    const wpts = asArray(gpx.wpt as Record<string, unknown> | Record<string, unknown>[] | undefined)
+    const survivors = wpts.filter(wp => {
+      const wpLat = Number(wp.lat)
+      const wpLng = Number(wp.lon)
+      return !wpDeletes.some(m => {
+        const p = m.payload as { lat: number; lng: number }
+        return p.lat === wpLat && p.lng === wpLng
+      })
+    })
+    if (survivors.length === 0) delete gpx.wpt
+    else gpx.wpt = survivors.length === 1 ? survivors[0] : survivors
+  }
+
+  let startMeters = 0
+  let endMeters = 0
+  for (const m of modifications) {
+    if (m.op === 'trim_route_start') startMeters = (m.payload as { meters: number }).meters
+    if (m.op === 'trim_route_end') endMeters = (m.payload as { meters: number }).meters
+  }
+  if (startMeters > 0 || endMeters > 0) {
+    const trks = asArray(gpx.trk as Record<string, unknown> | Record<string, unknown>[] | undefined)
+    for (const trk of trks) {
+      const segs = asArray(trk.trkseg as Record<string, unknown> | Record<string, unknown>[] | undefined)
+      for (const seg of segs) {
+        const trkpts = asArray(seg.trkpt as Record<string, unknown> | Record<string, unknown>[] | undefined)
+        seg.trkpt = trimTrkpts(trkpts, startMeters, endMeters)
+      }
+    }
+  }
+
+  const builder = new XMLBuilder({
+    ignoreAttributes: false,
+    attributeNamePrefix: '',
+    format: true,
+  })
+  const newXml = '<?xml version="1.0"?>\n' + builder.build(ast)
+  const blob = new Blob([newXml], { type: 'application/gpx+xml' })
+  return { blob, filename: tendedFilename(originalFilename) }
 }

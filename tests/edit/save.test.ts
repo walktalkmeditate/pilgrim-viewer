@@ -123,3 +123,50 @@ describe('serializeTendedPilgrim', () => {
     expect(result.filename).toBe('sample-tended.pilgrim')
   })
 })
+
+describe('serializeTendedGpx', () => {
+  const sampleGpx = `<?xml version="1.0"?>
+<gpx version="1.1" creator="test">
+  <wpt lat="0.001" lon="0"><name>WP1</name></wpt>
+  <wpt lat="0.005" lon="0"><name>WP2</name></wpt>
+  <trk><name>Test</name><trkseg>
+    <trkpt lat="0" lon="0"><ele>100</ele><time>2024-01-01T00:00:00Z</time></trkpt>
+    <trkpt lat="0.001" lon="0"><ele>105</ele><time>2024-01-01T00:01:00Z</time></trkpt>
+    <trkpt lat="0.002" lon="0"><ele>110</ele><time>2024-01-01T00:02:00Z</time></trkpt>
+    <trkpt lat="0.003" lon="0"><ele>115</ele><time>2024-01-01T00:03:00Z</time></trkpt>
+  </trkseg></trk>
+</gpx>`
+
+  async function blobToText(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsText(blob)
+    })
+  }
+
+  it('removes a deleted waypoint by lat/lng', async () => {
+    const { serializeTendedGpx } = await import('../../src/edit/save')
+    const result = await serializeTendedGpx({
+      originalXml: sampleGpx,
+      modifications: [mkMod('delete_waypoint', { lat: 0.001, lng: 0 })],
+      originalFilename: 'route.gpx',
+    })
+    const text = await blobToText(result.blob)
+    expect(text).not.toContain('WP1')
+    expect(text).toContain('WP2')
+    expect(result.filename).toBe('route-tended.gpx')
+  })
+
+  it('trims route start (drops leading trkpts)', async () => {
+    const { serializeTendedGpx } = await import('../../src/edit/save')
+    const result = await serializeTendedGpx({
+      originalXml: sampleGpx,
+      modifications: [mkMod('trim_route_start', { meters: 50 })],
+      originalFilename: 'route.gpx',
+    })
+    const text = await blobToText(result.blob)
+    expect((text.match(/<trkpt/g) ?? []).length).toBeLessThan(4)
+  })
+})
