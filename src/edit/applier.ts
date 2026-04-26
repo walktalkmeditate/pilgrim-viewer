@@ -7,7 +7,8 @@ export function applyMods(walk: Walk, mods: Modification[]): Walk | null {
 
   const replace = mods.find(m => m.op === 'replace_walk')
   if (replace) {
-    return (replace.payload as { walk: Walk }).walk
+    const replaced = (replace.payload as { walk: Walk }).walk
+    return { ...replaced, isUserModified: true }
   }
 
   let next: Walk = { ...walk }

@@ -63,6 +63,19 @@ describe('applyMods — section deletes', () => {
     const out = applyMods(makeWalk(), [mkMod('delete_section', { section: 'reflection' })])
     expect(out!.reflection).toBeUndefined()
   })
+
+  it('delete_section celestial removes the field', () => {
+    const w = makeWalk()
+    w.celestial = {
+      lunarPhase: { name: 'full', illumination: 1, age: 14, isWaxing: false },
+      planetaryPositions: [],
+      planetaryHour: { planet: 'sol', planetaryDay: 'sun' },
+      elementBalance: { fire: 1, earth: 0, air: 0, water: 0 },
+      zodiacSystem: 'tropical',
+    }
+    const out = applyMods(w, [mkMod('delete_section', { section: 'celestial' })])
+    expect(out!.celestial).toBeUndefined()
+  })
 })
 
 describe('applyMods — archive_walk', () => {
@@ -78,5 +91,16 @@ describe('applyMods — empty mods', () => {
     const out = applyMods(walk, [])
     expect(out).toEqual(walk)
     expect(out!.isUserModified).not.toBe(true)
+  })
+})
+
+describe('applyMods — replace_walk', () => {
+  it('returns the payload walk with isUserModified=true', () => {
+    const original = makeWalk()
+    const replacement: Walk = { ...original, intention: 'completely new' }
+    const out = applyMods(original, [mkMod('replace_walk', { walk: replacement })])
+    expect(out).not.toBeNull()
+    expect(out!.intention).toBe('completely new')
+    expect(out!.isUserModified).toBe(true)
   })
 })
