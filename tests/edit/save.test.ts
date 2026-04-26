@@ -1,0 +1,125 @@
+// @vitest-environment jsdom
+import { describe, it, expect } from 'vitest'
+import JSZip from 'jszip'
+import { serializeTendedPilgrim } from '../../src/edit/save'
+import type { Modification, PilgrimManifest } from '../../src/parsers/types'
+
+async function makeMinimalPilgrimZip(): Promise<{ buf: ArrayBuffer; manifest: PilgrimManifest; rawWalks: unknown[] }> {
+  const manifest: PilgrimManifest = {
+    schemaVersion: '1.0',
+    exportDate: 1745000000,
+    appVersion: '1.0.0',
+    walkCount: 2,
+    preferences: { distanceUnit: 'km', altitudeUnit: 'm', speedUnit: 'min/km', energyUnit: 'kcal' },
+    archived: [],
+    modifications: [],
+    archivedCount: 0,
+  }
+  const walkA = {
+    schemaVersion: '1.0', id: 'walk-a', type: 'walking',
+    startDate: 1700000000, endDate: 1700000600,
+    stats: { distance: 1000, activeDuration: 540, pauseDuration: 60, ascent: 50, descent: 50,
+             talkDuration: 0, meditateDuration: 0, steps: 1500 },
+    route: { type: 'FeatureCollection', features: [{ type: 'Feature',
+      geometry: { type: 'LineString', coordinates: [[0,0,100],[0.001,0,105],[0.002,0,110]] },
+      properties: { timestamps: [1700000000, 1700000300, 1700000600] } }] },
+    pauses: [], activities: [], voiceRecordings: [],
+    intention: 'walk a',
+  }
+  const walkB = { ...walkA, id: 'walk-b', intention: 'walk b' }
+  const zip = new JSZip()
+  zip.file('manifest.json', JSON.stringify(manifest))
+  zip.file('walks/walk-a.json', JSON.stringify(walkA))
+  zip.file('walks/walk-b.json', JSON.stringify(walkB))
+  const buf = await zip.generateAsync({ type: 'arraybuffer' })
+  return { buf, manifest, rawWalks: [walkA, walkB] }
+}
+
+function mkMod(op: Modification['op'], payload: unknown, walkId?: string): Modification {
+  return { id: `m-${Math.random()}`, at: Date.now(), op, walkId, payload: payload as Modification['payload'] }
+}
+
+describe('serializeTendedPilgrim', () => {
+  it('archives a walk: removes file from walks/, appends skeletal record to manifest.archived', async () => {
+    const { buf, manifest, rawWalks } = await makeMinimalPilgrimZip()
+    const result = await serializeTendedPilgrim({
+      originalBuffer: buf,
+      manifest,
+      rawWalks,
+      modifications: [mkMod('archive_walk', {}, 'walk-a')],
+      includeHistory: true,
+      originalFilename: 'sample.pilgrim',
+    })
+
+    const reZip = await JSZip.loadAsync(result.blob)
+    const newManifest = JSON.parse(await reZip.file('manifest.json')!.async('text'))
+
+    expect(reZip.file('walks/walk-a.json')).toBeNull()
+    expect(reZip.file('walks/walk-b.json')).not.toBeNull()
+    expect(newManifest.walkCount).toBe(1)
+    expect(newManifest.archivedCount).toBe(1)
+    expect(newManifest.archived).toHaveLength(1)
+    expect(newManifest.archived[0].id).toBe('walk-a')
+    expect(newManifest.archived[0].stats.distance).toBe(1000)
+    expect(newManifest.archived[0].stats.activeDuration).toBe(540)
+    expect(newManifest.modifications.length).toBeGreaterThan(0)
+    expect(result.filename).toBe('sample-tended.pilgrim')
+    expect(newManifest.schemaVersion).toBe('1.0')
+  })
+
+  it('edit_intention rewrites the walk JSON in place', async () => {
+    const { buf, manifest, rawWalks } = await makeMinimalPilgrimZip()
+    const result = await serializeTendedPilgrim({
+      originalBuffer: buf,
+      manifest,
+      rawWalks,
+      modifications: [mkMod('edit_intention', { text: 'rewritten' }, 'walk-a')],
+      includeHistory: true,
+      originalFilename: 'sample.pilgrim',
+    })
+
+    const reZip = await JSZip.loadAsync(result.blob)
+    const updated = JSON.parse(await reZip.file('walks/walk-a.json')!.async('text'))
+    expect(updated.intention).toBe('rewritten')
+    expect(updated.isUserModified).toBe(true)
+  })
+
+  it('history toggle off strips both old and new modifications', async () => {
+    const seed = await makeMinimalPilgrimZip()
+    const seedManifest: PilgrimManifest = {
+      ...seed.manifest,
+      modifications: [{ id: 'old', at: 1, op: 'archive_walk', walkId: 'walk-x', payload: {} }],
+    }
+    const zip = new JSZip()
+    zip.file('manifest.json', JSON.stringify(seedManifest))
+    zip.file('walks/walk-a.json', JSON.stringify(seed.rawWalks[0]))
+    zip.file('walks/walk-b.json', JSON.stringify(seed.rawWalks[1]))
+    const buf = await zip.generateAsync({ type: 'arraybuffer' })
+
+    const result = await serializeTendedPilgrim({
+      originalBuffer: buf,
+      manifest: seedManifest,
+      rawWalks: seed.rawWalks,
+      modifications: [mkMod('edit_intention', { text: 'x' }, 'walk-a')],
+      includeHistory: false,
+      originalFilename: 'sample.pilgrim',
+    })
+
+    const reZip = await JSZip.loadAsync(result.blob)
+    const newManifest = JSON.parse(await reZip.file('manifest.json')!.async('text'))
+    expect(newManifest.modifications).toEqual([])
+  })
+
+  it('keeps -tended suffix from already-tended files (no -tended-tended)', async () => {
+    const { buf, manifest, rawWalks } = await makeMinimalPilgrimZip()
+    const result = await serializeTendedPilgrim({
+      originalBuffer: buf,
+      manifest,
+      rawWalks,
+      modifications: [],
+      includeHistory: true,
+      originalFilename: 'sample-tended.pilgrim',
+    })
+    expect(result.filename).toBe('sample-tended.pilgrim')
+  })
+})
