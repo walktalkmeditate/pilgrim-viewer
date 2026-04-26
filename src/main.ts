@@ -96,18 +96,66 @@ window.addEventListener('pilgrim-edit-save-requested', async () => {
   if (currentWalks.length === 0) return
   const source = currentWalks[0].source
   const originalFilename = currentLoadedFilename ?? (source === 'pilgrim' ? 'walk.pilgrim' : 'walk.gpx')
-  if (source === 'pilgrim') {
-    if (!currentManifest || !originalPilgrimBuffer) return
-    await editApi.saveAll({
-      source: 'pilgrim',
-      originalBuffer: originalPilgrimBuffer,
-      manifest: currentManifest,
-      rawWalks: currentRawWalks,
-      originalFilename,
-    })
-  } else {
-    if (!originalGpxXml) return
-    await editApi.saveAll({ source: 'gpx', originalXml: originalGpxXml, originalFilename })
+  try {
+    if (source === 'pilgrim') {
+      if (!currentManifest || !originalPilgrimBuffer) return
+      await editApi.saveAll({
+        source: 'pilgrim',
+        originalBuffer: originalPilgrimBuffer,
+        manifest: currentManifest,
+        rawWalks: currentRawWalks,
+        originalFilename,
+      })
+    } else {
+      if (!originalGpxXml) return
+      await editApi.saveAll({ source: 'gpx', originalXml: originalGpxXml, originalFilename })
+    }
+  } catch (err) {
+    // Validation, ZIP corruption, or any other save-time failure. Surface
+    // it instead of letting the unhandled rejection vanish into the
+    // console. Staging stays intact so the user can retry.
+    const msg = err instanceof Error ? err.message : 'Save failed'
+    console.error('Save error:', err)
+    alert(`Save failed: ${msg}`)
+  }
+})
+
+// Re-sync in-memory state to whatever was just saved. Called after a
+// successful save so that:
+//  - the live preview reflects the post-tend state (deletions stay deleted,
+//    not reverted by staging.clear's re-render),
+//  - subsequent saves stack on top of the saved-file state, preserving
+//    cumulative manifest.modifications history,
+//  - the user can hit Save again with new edits and get a sensible diff.
+window.addEventListener('pilgrim-edit-saved', async (event) => {
+  if (!editApi) return
+  const detail = (event as CustomEvent).detail as
+    | { source: 'pilgrim'; buffer: ArrayBuffer; filename: string }
+    | { source: 'gpx'; xml: string; filename: string }
+  try {
+    if (detail.source === 'pilgrim') {
+      const reParsed = await parsePilgrim(detail.buffer)
+      releaseWalkPhotoURLs(currentWalks)
+      currentWalks = reParsed.walks
+      currentRawWalks = reParsed.rawWalks
+      currentManifest = reParsed.manifest
+      originalPilgrimBuffer = detail.buffer
+      originalGpxXml = undefined
+    } else {
+      currentWalks = parseGPX(detail.xml)
+      currentRawWalks = []
+      currentManifest = undefined
+      originalGpxXml = detail.xml
+      originalPilgrimBuffer = undefined
+    }
+    currentLoadedFilename = detail.filename
+    editApi.staging.clear()
+    void renderApp()
+  } catch (err) {
+    console.error('Post-save state refresh failed:', err)
+    // Even on refresh failure, clear staging so the drawer doesn't
+    // continue to show the just-saved mods as still pending.
+    editApi.staging.clear()
   }
 })
 
@@ -135,6 +183,9 @@ const pilgrimViewer: PilgrimViewerAPI = {
       // the JS bridge data.
       handleFileGeneration += 1
       releaseWalkPhotoURLs(currentWalks)
+      // Drop any pending edits — they belong to the previous file/walks
+      // and would silently no-op against the new data on save.
+      if (editApi) editApi.staging.clear()
       currentWalks = walks
       currentIsGold = !!data.isGold
       currentManifest = data.manifest
@@ -241,6 +292,12 @@ async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
     originalGpxXml = pendingGpxXml
     currentLoadedFilename = name
     releaseWalkPhotoURLs(previousWalks)
+    // Drop any pending edits scoped to the previous file. Without this,
+    // the drawer would keep showing mods whose walkIds belong to a file
+    // that's no longer loaded — Save would then silently produce a
+    // no-op file (modsForWalk filters out all the orphaned mods) and
+    // the user would lose their prior edits without warning.
+    if (editApi) editApi.staging.clear()
 
     if (currentWalks[0].source === 'pilgrim') {
       window.dispatchEvent(new CustomEvent('pilgrimdata', {

@@ -103,7 +103,29 @@ export function mountEditLayer(headerControls: HTMLElement, app: HTMLElement): E
         })
       }
       triggerDownload(result.blob, result.filename)
-      staging.clear()
+
+      // After the download is triggered, refresh the in-memory state so
+      // it matches the file the user just saved. Without this:
+      //  - currentWalks still reflects the un-tended state, so the next
+      //    rerender (after staging.clear()) shows deletions reverted.
+      //  - originalPilgrimBuffer still points at the pre-save bytes, so
+      //    subsequent saves stack mods on top of v0 instead of v(n-1),
+      //    losing prior modifications history.
+      // main.ts listens for this event and re-parses the saved blob.
+      if (opts.source === 'pilgrim') {
+        const savedBuffer = await result.blob.arrayBuffer()
+        window.dispatchEvent(new CustomEvent('pilgrim-edit-saved', {
+          detail: { source: 'pilgrim', buffer: savedBuffer, filename: result.filename },
+        }))
+      } else {
+        const savedXml = await result.blob.text()
+        window.dispatchEvent(new CustomEvent('pilgrim-edit-saved', {
+          detail: { source: 'gpx', xml: savedXml, filename: result.filename },
+        }))
+      }
+      // Note: staging.clear() is fired by the main.ts handler AFTER it
+      // has updated currentWalks. That ordering avoids a flash where the
+      // panel re-renders against un-tended walks before the state catches up.
     },
     getIncludeHistory: () => pendingHistoryToggle,
   }

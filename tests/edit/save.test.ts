@@ -5,6 +5,27 @@ import { serializeTendedPilgrim } from '../../src/edit/save'
 import type { Modification, PilgrimManifest } from '../../src/parsers/types'
 
 async function makeMinimalPilgrimZip(): Promise<{ buf: ArrayBuffer; manifest: PilgrimManifest; rawWalks: unknown[] }> {
+  // Manifest must satisfy validatePilgrimManifest's iOS-shape contract
+  // (see src/edit/save.ts) — which means the on-disk JSON needs
+  // customPromptStyles, intentions, events, and the full preferences set
+  // even though our typed PilgrimManifest doesn't model them.
+  const fullManifestJson = {
+    schemaVersion: '1.0',
+    exportDate: 1745000000,
+    appVersion: '1.0.0',
+    walkCount: 2,
+    preferences: {
+      distanceUnit: 'km', altitudeUnit: 'm', speedUnit: 'min/km', energyUnit: 'kcal',
+      celestialAwareness: true, zodiacSystem: 'tropical', beginWithIntention: true,
+    },
+    customPromptStyles: [],
+    intentions: [],
+    events: [],
+    archived: [],
+    modifications: [],
+    archivedCount: 0,
+  }
+  // The TS-typed view that callers pass into serializeTendedPilgrim.
   const manifest: PilgrimManifest = {
     schemaVersion: '1.0',
     exportDate: 1745000000,
@@ -28,7 +49,7 @@ async function makeMinimalPilgrimZip(): Promise<{ buf: ArrayBuffer; manifest: Pi
   }
   const walkB = { ...walkA, id: 'walk-b', intention: 'walk b' }
   const zip = new JSZip()
-  zip.file('manifest.json', JSON.stringify(manifest))
+  zip.file('manifest.json', JSON.stringify(fullManifestJson))
   zip.file('walks/walk-a.json', JSON.stringify(walkA))
   zip.file('walks/walk-b.json', JSON.stringify(walkB))
   const buf = await zip.generateAsync({ type: 'arraybuffer' })
@@ -90,8 +111,17 @@ describe('serializeTendedPilgrim', () => {
       ...seed.manifest,
       modifications: [{ id: 'old', at: 1, op: 'archive_walk', walkId: 'walk-x', payload: {} }],
     }
+    // The on-disk manifest must satisfy iOS schema requirements.
+    const seedFullManifestJson = {
+      ...seedManifest,
+      preferences: {
+        distanceUnit: 'km', altitudeUnit: 'm', speedUnit: 'min/km', energyUnit: 'kcal',
+        celestialAwareness: true, zodiacSystem: 'tropical', beginWithIntention: true,
+      },
+      customPromptStyles: [], intentions: [], events: [],
+    }
     const zip = new JSZip()
-    zip.file('manifest.json', JSON.stringify(seedManifest))
+    zip.file('manifest.json', JSON.stringify(seedFullManifestJson))
     zip.file('walks/walk-a.json', JSON.stringify(seed.rawWalks[0]))
     zip.file('walks/walk-b.json', JSON.stringify(seed.rawWalks[1]))
     const buf = await zip.generateAsync({ type: 'arraybuffer' })

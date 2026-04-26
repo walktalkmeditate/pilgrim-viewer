@@ -53,6 +53,42 @@ describe('integration — open, tend, save, re-parse', () => {
     expect(reParsed.manifest.modifications!.length).toBeGreaterThanOrEqual(2)
   })
 
+  // Regression for the iOS-stripping bug: viewer's PilgrimManifest type
+  // drops customPromptStyles, intentions, events, and 3 preferences
+  // sub-fields. iOS Codable rejects on missing required fields. The save
+  // path must preserve these from the original manifest. Asserting the
+  // bytes-on-disk shape (post-save), not just our parser's view.
+  it('saved manifest preserves iOS-required fields stripped by viewer parser', async () => {
+    const nodeBuf = readFileSync(KUMANO_PATH)
+    const buf = bufferToArrayBuffer(nodeBuf)
+    const original = await parsePilgrim(buf)
+
+    const result = await serializeTendedPilgrim({
+      originalBuffer: buf,
+      manifest: original.manifest,
+      rawWalks: original.rawWalks,
+      modifications: [mkMod('edit_intention', { text: 'x' }, original.walks[0].id)],
+      includeHistory: true,
+      originalFilename: 'kumano-kodo.pilgrim',
+    })
+
+    // Inspect the raw saved manifest, not the parsed view.
+    const reZip = await JSZip.loadAsync(result.blob)
+    const rawManifest = JSON.parse(await reZip.file('manifest.json')!.async('text'))
+
+    // iOS-required top-level arrays:
+    expect(Array.isArray(rawManifest.customPromptStyles)).toBe(true)
+    expect(Array.isArray(rawManifest.intentions)).toBe(true)
+    expect(Array.isArray(rawManifest.events)).toBe(true)
+    // iOS-required preferences sub-fields:
+    expect(typeof rawManifest.preferences.celestialAwareness).toBe('boolean')
+    expect(typeof rawManifest.preferences.zodiacSystem).toBe('string')
+    expect(typeof rawManifest.preferences.beginWithIntention).toBe('boolean')
+    // Editor-managed fields override:
+    expect(rawManifest.schemaVersion).toBe('1.0')
+    expect(rawManifest.modifications.length).toBeGreaterThan(0)
+  })
+
   it('tend-a-tended-file: cumulative modifications log', async () => {
     const nodeBuf = readFileSync(KUMANO_PATH)
     const buf = bufferToArrayBuffer(nodeBuf)

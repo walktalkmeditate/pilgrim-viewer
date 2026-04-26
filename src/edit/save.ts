@@ -127,8 +127,22 @@ export async function serializeTendedPilgrim(input: SerializeInput): Promise<Ser
   const { originalBuffer, manifest, rawWalks, modifications, includeHistory, originalFilename } = input
 
   const zip = await JSZip.loadAsync(originalBuffer)
+
+  // Re-extract the ORIGINAL manifest as a raw object. The viewer's
+  // PilgrimManifest type drops fields the iOS importer requires
+  // (customPromptStyles, intentions, events, plus 3 preferences
+  // sub-fields). Spreading from `manifest` would lose them and break
+  // the iOS reimport — Codable rejects on missing required fields and
+  // silently drops the walk on a per-walk decode failure. We use the
+  // raw original as the base and overlay only the fields we change.
+  const manifestFile = zip.file('manifest.json')
+  if (!manifestFile) throw new Error('Original .pilgrim is missing manifest.json')
+  const rawManifest = JSON.parse(await manifestFile.async('text')) as Record<string, unknown>
+  void manifest  // typed view used by callers; raw is what we serialize from
+
   const archivedIds = modsArchivingWalk(modifications)
-  const newArchived: ArchivedWalk[] = [...(manifest.archived ?? [])]
+  const existingArchived = Array.isArray(rawManifest.archived) ? (rawManifest.archived as ArchivedWalk[]) : []
+  const newArchived: ArchivedWalk[] = [...existingArchived]
   const archivedAt = Math.floor(Date.now() / 1000)
 
   let activeCount = 0
@@ -201,12 +215,14 @@ export async function serializeTendedPilgrim(input: SerializeInput): Promise<Ser
     zip.file(`walks/${id}.json`, JSON.stringify(editedRaw))
   }
 
-  const newMods = includeHistory
-    ? [...(manifest.modifications ?? []), ...modifications]
-    : []
+  const existingMods = Array.isArray(rawManifest.modifications) ? (rawManifest.modifications as Modification[]) : []
+  const newMods = includeHistory ? [...existingMods, ...modifications] : []
 
-  const newManifest: PilgrimManifest = {
-    ...manifest,
+  // Build the new manifest from the RAW original so iOS-required
+  // fields (customPromptStyles, intentions, events, full preferences)
+  // round-trip intact. Override only the fields we manage.
+  const newManifest: Record<string, unknown> = {
+    ...rawManifest,
     schemaVersion: '1.0',
     walkCount: activeCount,
     archivedCount: newArchived.length,
@@ -222,6 +238,11 @@ export async function serializeTendedPilgrim(input: SerializeInput): Promise<Ser
   return { blob, filename: tendedFilename(originalFilename) }
 }
 
+// Mirrors the strict Codable contract of iOS's PilgrimManifest in
+// `pilgrim-ios/.../PilgrimPackageModels.swift`. ALL fields required;
+// missing or wrong-typed → Swift JSONDecoder throws → iOS importer
+// rejects the file. Run on every save to fail loudly here instead of
+// silently producing an unimportable file.
 export function validatePilgrimManifest(raw: unknown): void {
   if (!raw || typeof raw !== 'object') {
     throw new Error('manifest must be an object')
@@ -237,9 +258,20 @@ export function validatePilgrimManifest(raw: unknown): void {
     throw new Error('manifest.preferences must be an object')
   }
   const p = m.preferences as Record<string, unknown>
-  for (const key of ['distanceUnit', 'altitudeUnit', 'speedUnit', 'energyUnit']) {
+  for (const key of ['distanceUnit', 'altitudeUnit', 'speedUnit', 'energyUnit', 'zodiacSystem']) {
     if (typeof p[key] !== 'string') {
       throw new Error(`manifest.preferences.${key} must be a string`)
+    }
+  }
+  for (const key of ['celestialAwareness', 'beginWithIntention']) {
+    if (typeof p[key] !== 'boolean') {
+      throw new Error(`manifest.preferences.${key} must be a boolean`)
+    }
+  }
+  // Top-level array fields iOS Codable requires (non-optional in Swift).
+  for (const key of ['customPromptStyles', 'intentions', 'events']) {
+    if (!Array.isArray(m[key])) {
+      throw new Error(`manifest.${key} must be an array (iOS Codable rejects missing/non-array)`)
     }
   }
 }
