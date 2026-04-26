@@ -21,6 +21,7 @@ import { parsePilgrimWalkJSON } from './parsers/pilgrim'
 import type { Walk, WalkPhoto, PilgrimManifest, PilgrimPreferences } from './parsers/types'
 import { createPrivacyZone } from './ui/privacy-zone'
 import { trimRouteEnds } from './parsers/route-trim'
+import type { LiveTrim } from './edit/trim-handles'
 
 const app = document.getElementById('app')!
 
@@ -387,6 +388,37 @@ async function renderApp(): Promise<void> {
   const mapRenderer = createMapRenderer(layout.mapContainer, token)
   activeMapRenderer = mapRenderer
 
+  // Build a per-walk refreshPreview that applies BOTH staged mods and
+  // any in-progress trim drag values. Trim handles call this with
+  // liveTrim during drag; we synthesize matching trim ops onto the
+  // mods list so applyMods produces the same shape it will produce
+  // on dragend (when the values land in staging via push). This keeps
+  // the polyline live during drag instead of staying at the un-trimmed
+  // shape until release.
+  function buildRefreshPreview(walk: Walk): (live?: LiveTrim) => void {
+    return (live) => {
+      let displayWalk = walk
+      if (editApi) {
+        const mods = [...editApi.staging.list()]
+        if (live?.startMeters && live.startMeters > 0) {
+          mods.push({
+            id: '__live_start', at: 0, op: 'trim_route_start',
+            walkId: walk.id, payload: { meters: live.startMeters },
+          })
+        }
+        if (live?.endMeters && live.endMeters > 0) {
+          mods.push({
+            id: '__live_end', at: 0, op: 'trim_route_end',
+            walkId: walk.id, payload: { meters: live.endMeters },
+          })
+        }
+        const tended = editApi.applyMods(walk, mods)
+        if (tended) displayWalk = tended
+      }
+      mapRenderer.showWalk(applyPrivacy(displayWalk), { privacyFade: privacyZone.getMeters() > 0 })
+    }
+  }
+
   // Pans the map to a photo's coordinates when the user taps a
   // thumbnail in the Photos panel. Keeps the current zoom if it's
   // already close; otherwise zooms to 14 so the user can see the
@@ -400,7 +432,7 @@ async function renderApp(): Promise<void> {
   }
 
   if (currentWalks.length > 1) {
-    rerender = renderMultiWalk(layout, mapRenderer, token, applyPrivacy, onPhotoSelect)
+    rerender = renderMultiWalk(layout, mapRenderer, token, applyPrivacy, onPhotoSelect, buildRefreshPreview)
   } else {
     const walk = currentWalks[0]
     let displayWalk = walk
@@ -412,14 +444,14 @@ async function renderApp(): Promise<void> {
     mapRenderer.showWalk(applyPrivacy(displayWalk), { privacyFade: pf })
     renderPanels(layout.sidebar, displayWalk, currentManifest, currentUnit, onPhotoSelect)
 
-    if (editApi && walk.source === 'pilgrim') {
+    if (editApi) {
       detachWalkUI()
       detachEdit = editApi.attachToWalkUI({
         walk,
         rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
         sidebar: layout.sidebar,
         map: mapRenderer.getMap(),
-        refreshPreview: () => mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: privacyZone.getMeters() > 0 }),
+        refreshPreview: buildRefreshPreview(walk),
       })
     }
 
@@ -432,14 +464,14 @@ async function renderApp(): Promise<void> {
       const pf = privacyZone.getMeters() > 0
       mapRenderer.showWalk(applyPrivacy(displayWalk), { privacyFade: pf })
       renderPanels(layout.sidebar, displayWalk, currentManifest, currentUnit, onPhotoSelect)
-      if (editApi && walk.source === 'pilgrim') {
+      if (editApi) {
         detachWalkUI()
         detachEdit = editApi.attachToWalkUI({
           walk,
           rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
           sidebar: layout.sidebar,
           map: mapRenderer.getMap(),
-          refreshPreview: () => mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: privacyZone.getMeters() > 0 }),
+          refreshPreview: buildRefreshPreview(walk),
         })
       }
     }
@@ -456,6 +488,7 @@ function renderMultiWalk(
   token: string,
   applyPrivacy: (walk: Walk) => Walk,
   onPhotoSelect: (photo: WalkPhoto) => void,
+  buildRefreshPreview: (walk: Walk) => (live?: LiveTrim) => void,
 ): () => void {
   let mode: 'list' | 'overlay' = 'list'
   let selectedWalk: Walk | null = null
@@ -483,14 +516,14 @@ function renderMultiWalk(
       const pf = privacyZone.getMeters() > 0
       mapRenderer.showWalk(applyPrivacy(displayWalk), { privacyFade: pf })
       renderPanels(layout.sidebar, displayWalk, currentManifest, currentUnit, onPhotoSelect)
-      if (editApi && walk.source === 'pilgrim') {
+      if (editApi) {
         detachWalkUI()
         detachEdit = editApi.attachToWalkUI({
           walk,
           rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
           sidebar: layout.sidebar,
           map: mapRenderer.getMap(),
-          refreshPreview: () => mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: privacyZone.getMeters() > 0 }),
+          refreshPreview: buildRefreshPreview(walk),
         })
       }
     }, currentUnit)

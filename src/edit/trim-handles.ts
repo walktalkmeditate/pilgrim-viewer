@@ -3,11 +3,21 @@ import type { Walk } from '../parsers/types'
 import type { Staging } from './staging'
 import { totalDistance } from '../parsers/geo'
 
+export interface LiveTrim {
+  startMeters?: number
+  endMeters?: number
+}
+
 export interface TrimHandleContext {
   map: mapboxgl.Map
   walk: Walk
   staging: Staging
-  refreshPreview: () => void
+  // Called continuously during drag with the in-progress trim values
+  // (in meters from the corresponding endpoint of the original route).
+  // Caller should render the walk with these values applied on TOP of
+  // any other staged mods so the preview reflects what dragend will
+  // commit. Called with no argument once drag completes / commits.
+  refreshPreview: (liveTrim?: LiveTrim) => void
 }
 
 export interface TrimHandleManager {
@@ -39,7 +49,11 @@ function computeTrimMeters(line: number[][], position: 'start' | 'end', dragged:
   }
 }
 
-function createMarker(ctx: TrimHandleContext, position: 'start' | 'end'): mapboxgl.Marker {
+function createMarker(
+  ctx: TrimHandleContext,
+  position: 'start' | 'end',
+  liveState: LiveTrim,
+): mapboxgl.Marker {
   const el = document.createElement('div')
   el.className = 'trim-handle'
 
@@ -68,7 +82,9 @@ function createMarker(ctx: TrimHandleContext, position: 'start' | 'end'): mapbox
     const meters = computeTrimMeters(line, position, [lngLat.lng, lngLat.lat])
     lastMeters = meters
     label.textContent = `−${Math.round(meters)}m from ${position}`
-    ctx.refreshPreview()
+    if (position === 'start') liveState.startMeters = meters
+    else liveState.endMeters = meters
+    ctx.refreshPreview({ ...liveState })
   })
 
   marker.on('dragend', () => {
@@ -78,14 +94,22 @@ function createMarker(ctx: TrimHandleContext, position: 'start' | 'end'): mapbox
       walkId: ctx.walk.id,
       payload: { meters: Math.round(lastMeters) },
     })
+    // Staging push triggers a rerender which destroys this marker
+    // and creates fresh ones with empty liveState. No need to reset
+    // here — but clear our copy in case the rerender lags.
+    if (position === 'start') liveState.startMeters = 0
+    else liveState.endMeters = 0
   })
 
   return marker
 }
 
 export function attachTrimHandles(ctx: TrimHandleContext): TrimHandleManager {
-  const startMarker = createMarker(ctx, 'start')
-  const endMarker = createMarker(ctx, 'end')
+  // Shared state between the two markers so refreshPreview gets a
+  // consistent view of both endpoints during a drag of either one.
+  const liveState: LiveTrim = { startMeters: 0, endMeters: 0 }
+  const startMarker = createMarker(ctx, 'start', liveState)
+  const endMarker = createMarker(ctx, 'end', liveState)
   return {
     destroy() {
       startMarker.remove()

@@ -234,6 +234,51 @@ describe('serializeTendedGpx', () => {
     expect(delText).not.toContain('<wpt')
   })
 
+  // Multi-segment GPX: previously the trim was applied to EVERY trkseg
+  // (which over-trimmed 5x for a 5-segment walk and tore segment joins).
+  // Now: startMeters applies only to the first seg, endMeters only to
+  // the last. Middle segments survive intact.
+  it('multi-trkseg trim: startMeters → first seg, endMeters → last seg, middle untouched', async () => {
+    const { serializeTendedGpx } = await import('../../src/edit/save')
+    const xml = `<?xml version="1.0"?>
+<gpx version="1.1" creator="test">
+  <trk><name>Multi</name>
+    <trkseg>
+      <trkpt lat="0" lon="0"><ele>100</ele></trkpt>
+      <trkpt lat="0.001" lon="0"><ele>105</ele></trkpt>
+      <trkpt lat="0.002" lon="0"><ele>110</ele></trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="0.010" lon="0"><ele>115</ele></trkpt>
+      <trkpt lat="0.011" lon="0"><ele>120</ele></trkpt>
+      <trkpt lat="0.012" lon="0"><ele>125</ele></trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="0.020" lon="0"><ele>130</ele></trkpt>
+      <trkpt lat="0.021" lon="0"><ele>135</ele></trkpt>
+      <trkpt lat="0.022" lon="0"><ele>140</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>`
+    const result = await serializeTendedGpx({
+      originalXml: xml,
+      modifications: [
+        mkMod('trim_route_start', { meters: 50 }),
+        mkMod('trim_route_end', { meters: 50 }),
+      ],
+      originalFilename: 'multi.gpx',
+    })
+    const text = await blobToText(result.blob)
+    // Middle segment (lat 0.010 / 0.011 / 0.012) must be entirely intact.
+    expect(text).toContain('lat="0.01"')
+    expect(text).toContain('lat="0.011"')
+    expect(text).toContain('lat="0.012"')
+    // First seg should have lost its leading point (~111m > 50m trim).
+    expect(text).not.toMatch(/<trkpt lat="0"\s+lon="0">/)
+    // Last seg should have lost its trailing point.
+    expect(text).not.toContain('lat="0.022"')
+  })
+
   // Same array-vs-object concern for trkseg/trkpt — fast-xml-parser
   // returns a single object when there's only one. trimTrkpts must
   // still receive a workable list via asArray.

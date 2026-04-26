@@ -9,6 +9,7 @@ import {
   attachWalkListDeletes,
 } from './affordances'
 import { attachTrimHandles } from './trim-handles'
+import type { LiveTrim } from './trim-handles'
 import { applyMods } from './applier'
 import type { Walk, Modification, PilgrimManifest } from '../parsers/types'
 import type mapboxgl from 'mapbox-gl'
@@ -25,7 +26,10 @@ export interface EditApi {
     rawWalk?: unknown
     sidebar: HTMLElement
     map?: mapboxgl.Map
-    refreshPreview: () => void
+    // Called by trim-handles during drag (with in-progress meters)
+    // and after staging changes (with no liveTrim) so the host can
+    // re-render the polyline reflecting both staged + live state.
+    refreshPreview: (liveTrim?: LiveTrim) => void
   }): () => void
   attachToWalkListUI(opts: { walks: Walk[]; sidebar: HTMLElement }): void
   saveAll(opts: SaveOptions): Promise<void>

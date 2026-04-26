@@ -369,13 +369,30 @@ export async function serializeTendedGpx(input: SerializeGpxInput): Promise<Seri
     if (m.op === 'trim_route_end') endMeters = (m.payload as { meters: number }).meters
   }
   if (startMeters > 0 || endMeters > 0) {
+    // Walk every <trkseg> across every <trk> in document order so we can
+    // identify the absolute first and last segments. Per-segment trim
+    // would over-trim multi-segment GPX (a 5-segment route with a 200m
+    // start trim becomes 5 × 200 = 1000m chopped, and the joins between
+    // segments break too). Instead: apply startMeters to the first seg
+    // only, endMeters to the last seg only.
+    const allSegs: Record<string, unknown>[] = []
     const trks = asArray(gpx.trk as Record<string, unknown> | Record<string, unknown>[] | undefined)
     for (const trk of trks) {
       const segs = asArray(trk.trkseg as Record<string, unknown> | Record<string, unknown>[] | undefined)
-      for (const seg of segs) {
-        const trkpts = asArray(seg.trkpt as Record<string, unknown> | Record<string, unknown>[] | undefined)
-        seg.trkpt = trimTrkpts(trkpts, startMeters, endMeters)
-      }
+      for (const seg of segs) allSegs.push(seg)
+    }
+    if (allSegs.length === 1) {
+      // Single segment — both trims act on the same point list.
+      const only = allSegs[0]
+      const trkpts = asArray(only.trkpt as Record<string, unknown> | Record<string, unknown>[] | undefined)
+      only.trkpt = trimTrkpts(trkpts, startMeters, endMeters)
+    } else if (allSegs.length > 1) {
+      const first = allSegs[0]
+      const last = allSegs[allSegs.length - 1]
+      const firstTrkpts = asArray(first.trkpt as Record<string, unknown> | Record<string, unknown>[] | undefined)
+      first.trkpt = trimTrkpts(firstTrkpts, startMeters, 0)
+      const lastTrkpts = asArray(last.trkpt as Record<string, unknown> | Record<string, unknown>[] | undefined)
+      last.trkpt = trimTrkpts(lastTrkpts, 0, endMeters)
     }
   }
 
