@@ -11,7 +11,7 @@
   letter-spacing: 0.05em;
 }
 .tend-toggle:hover { background: rgba(128, 128, 128, 0.1); }
-.tend-toggle.active { background: currentColor; color: var(--bg); }
+.tend-toggle.active { background: currentColor; color: var(--parchment); }
 
 /* Body class flags */
 body.tend-on .panel-x,
@@ -70,7 +70,7 @@ body.tend-on .editable-text:hover { border-bottom-color: currentColor; }
 .staging-drawer {
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  background: var(--bg);
+  background: var(--parchment);
   border-top: 1px solid rgba(128, 128, 128, 0.3);
   padding: 0.75rem 1rem;
   z-index: 100;
@@ -95,7 +95,7 @@ body.tend-on .editable-text:hover { border-bottom-color: currentColor; }
   padding: 0.4rem 1rem; border: 1px solid currentColor; background: transparent;
   color: inherit; cursor: pointer; font-family: inherit;
 }
-.staging-drawer-save:hover { background: currentColor; color: var(--bg); }
+.staging-drawer-save:hover { background: currentColor; color: var(--parchment); }
 .staging-drawer-discard {
   background: transparent; border: none; color: rgba(128, 128, 128, 0.7);
   cursor: pointer; font-family: inherit;
@@ -107,13 +107,13 @@ body.tend-on .editable-text:hover { border-bottom-color: currentColor; }
 .trim-handle {
   width: 18px; height: 18px;
   background: var(--accent, #b08968);
-  border: 2px solid var(--bg);
+  border: 2px solid var(--parchment);
   border-radius: 50%;
   cursor: ew-resize;
   box-shadow: 0 1px 4px rgba(0,0,0,0.3);
 }
 .trim-label {
-  background: var(--bg);
+  background: var(--parchment);
   padding: 2px 6px;
   border: 1px solid currentColor;
   font-size: 0.75rem;
@@ -128,7 +128,7 @@ body.tend-on .editable-text:hover { border-bottom-color: currentColor; }
   display: flex; align-items: center; justify-content: center;
 }
 .archive-modal {
-  background: var(--bg);
+  background: var(--parchment);
   padding: 1.5rem 2rem;
   max-width: 500px;
   border: 1px solid rgba(128, 128, 128, 0.3);
