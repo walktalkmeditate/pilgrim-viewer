@@ -1,6 +1,23 @@
 import type { Walk, Modification, DeletableSection } from '../parsers/types'
 import { recomputeStats } from './recompute'
 
+function dateToEpochSeconds(d: Date): number {
+  return Math.floor(d.getTime() / 1000)
+}
+
+function collectDeletes(mods: Modification[], op: Modification['op']): Set<number | string> {
+  const keys = new Set<number | string>()
+  for (const m of mods) {
+    if (m.op !== op) continue
+    if (op === 'delete_photo') {
+      keys.add((m.payload as { localIdentifier: string }).localIdentifier)
+    } else {
+      keys.add((m.payload as { startDate: number }).startDate)
+    }
+  }
+  return keys
+}
+
 export function applyMods(walk: Walk, mods: Modification[]): Walk | null {
   if (mods.length === 0) return walk
   if (mods.some(m => m.op === 'archive_walk')) return null
@@ -39,6 +56,54 @@ export function applyMods(walk: Walk, mods: Modification[]): Walk | null {
     if (sectionDeletes.has('reflection')) next = { ...next, reflection: undefined }
     if (sectionDeletes.has('weather')) next = { ...next, weather: undefined }
     if (sectionDeletes.has('celestial')) next = { ...next, celestial: undefined }
+    changed = true
+  }
+
+  // List-item deletes
+  const photoDeletes = collectDeletes(mods, 'delete_photo')
+  const recDeletes = collectDeletes(mods, 'delete_voice_recording')
+  const pauseDeletes = collectDeletes(mods, 'delete_pause')
+  const activityDeletes = collectDeletes(mods, 'delete_activity')
+
+  if (photoDeletes.size > 0 && next.photos) {
+    const remaining = next.photos.filter(p => !photoDeletes.has(p.localIdentifier))
+    next = { ...next, photos: remaining.length > 0 ? remaining : undefined }
+    changed = true
+  }
+  if (recDeletes.size > 0) {
+    next = {
+      ...next,
+      voiceRecordings: next.voiceRecordings.filter(r => !recDeletes.has(dateToEpochSeconds(r.startDate))),
+    }
+    changed = true
+  }
+  if (pauseDeletes.size > 0) {
+    next = {
+      ...next,
+      pauses: next.pauses.filter(p => !pauseDeletes.has(dateToEpochSeconds(p.startDate))),
+    }
+    changed = true
+  }
+  if (activityDeletes.size > 0) {
+    next = {
+      ...next,
+      activities: next.activities.filter(a => !activityDeletes.has(dateToEpochSeconds(a.startDate))),
+    }
+    changed = true
+  }
+
+  // edit_transcription — replace text on matching recordings
+  for (const m of mods) {
+    if (m.op !== 'edit_transcription') continue
+    const p = m.payload as { recordingStartDate: number; text: string }
+    next = {
+      ...next,
+      voiceRecordings: next.voiceRecordings.map(r =>
+        dateToEpochSeconds(r.startDate) === p.recordingStartDate
+          ? { ...r, transcription: p.text }
+          : r,
+      ),
+    }
     changed = true
   }
 

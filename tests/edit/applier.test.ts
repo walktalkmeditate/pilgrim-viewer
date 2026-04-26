@@ -104,3 +104,78 @@ describe('applyMods — replace_walk', () => {
     expect(out!.isUserModified).toBe(true)
   })
 })
+
+import type { WalkPhoto, VoiceRecording, Pause, Activity } from '../../src/parsers/types'
+
+function walkWithLists(): Walk {
+  const w = makeWalk()
+  w.photos = [
+    { localIdentifier: 'p1', capturedAt: new Date(1_100_000), lat: 0, lng: 0, url: 'blob:1' },
+    { localIdentifier: 'p2', capturedAt: new Date(1_200_000), lat: 0, lng: 0, url: 'blob:2' },
+  ] as WalkPhoto[]
+  w.voiceRecordings = [
+    { startDate: new Date(1_100_000), endDate: new Date(1_120_000), duration: 20, transcription: 'hello' },
+    { startDate: new Date(1_300_000), endDate: new Date(1_320_000), duration: 20, transcription: 'world' },
+  ] as VoiceRecording[]
+  w.pauses = [
+    { startDate: new Date(1_400_000), endDate: new Date(1_460_000), type: 'manual' },
+  ] as Pause[]
+  w.activities = [
+    { type: 'meditate', startDate: new Date(1_100_000), endDate: new Date(1_300_000) },
+    { type: 'talk', startDate: new Date(1_300_000), endDate: new Date(1_320_000) },
+  ] as Activity[]
+  return w
+}
+
+describe('applyMods — list-item deletes', () => {
+  it('delete_photo removes by localIdentifier', () => {
+    const out = applyMods(walkWithLists(), [mkMod('delete_photo', { localIdentifier: 'p1' })])
+    expect(out!.photos).toHaveLength(1)
+    expect(out!.photos![0].localIdentifier).toBe('p2')
+  })
+
+  it('delete_voice_recording removes by epoch-seconds startDate', () => {
+    const startSec = Math.floor(1_100_000 / 1000)  // 1100
+    const out = applyMods(walkWithLists(), [mkMod('delete_voice_recording', { startDate: startSec })])
+    expect(out!.voiceRecordings).toHaveLength(1)
+    expect(out!.voiceRecordings[0].transcription).toBe('world')
+  })
+
+  it('delete_pause removes by epoch-seconds startDate', () => {
+    const startSec = Math.floor(1_400_000 / 1000)  // 1400
+    const out = applyMods(walkWithLists(), [mkMod('delete_pause', { startDate: startSec })])
+    expect(out!.pauses).toHaveLength(0)
+  })
+
+  it('delete_activity removes by epoch-seconds startDate', () => {
+    const startSec = Math.floor(1_100_000 / 1000)
+    const out = applyMods(walkWithLists(), [mkMod('delete_activity', { startDate: startSec })])
+    expect(out!.activities).toHaveLength(1)
+    expect(out!.activities[0].type).toBe('talk')
+  })
+
+  it('multiple deletes are order-independent', () => {
+    const w = walkWithLists()
+    const a = applyMods(w, [
+      mkMod('delete_photo', { localIdentifier: 'p1' }),
+      mkMod('delete_photo', { localIdentifier: 'p2' }),
+    ])
+    const b = applyMods(w, [
+      mkMod('delete_photo', { localIdentifier: 'p2' }),
+      mkMod('delete_photo', { localIdentifier: 'p1' }),
+    ])
+    expect(a!.photos).toEqual(b!.photos)
+    expect(a!.photos).toBeUndefined()
+  })
+})
+
+describe('applyMods — edit_transcription', () => {
+  it('replaces transcription text on the matching recording, preserves others', () => {
+    const startSec = Math.floor(1_100_000 / 1000)
+    const out = applyMods(walkWithLists(), [
+      mkMod('edit_transcription', { recordingStartDate: startSec, text: 'corrected' }),
+    ])
+    expect(out!.voiceRecordings[0].transcription).toBe('corrected')
+    expect(out!.voiceRecordings[1].transcription).toBe('world')
+  })
+})
