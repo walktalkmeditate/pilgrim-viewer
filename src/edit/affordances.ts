@@ -1,5 +1,6 @@
 import type { Walk, DeletableSection } from '../parsers/types'
 import type { Staging } from './staging'
+import { showArchiveModal } from './archive-modal'
 
 export interface AffordanceContext {
   staging: Staging
@@ -190,5 +191,39 @@ function attachMultiLineEditor(el: HTMLElement, initial: string, onCommit: (text
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); input.blur() }
       if (e.key === 'Escape') { input.value = initial; input.blur() }
     })
+  })
+}
+
+export interface WalkListAffordanceContext {
+  staging: Staging
+  walks: Walk[]
+  sidebar: HTMLElement
+}
+
+export function attachWalkListDeletes(ctx: WalkListAffordanceContext): void {
+  const items = ctx.sidebar.querySelectorAll<HTMLElement>('.walk-list-item')
+  Array.from(items).forEach((el, idx) => {
+    const walk = ctx.walks[idx]
+    if (!walk) return
+
+    const isArchived = ctx.staging.list().some(m => m.op === 'archive_walk' && m.walkId === walk.id)
+    if (isArchived) {
+      el.classList.add('pending-archive')
+      const tag = document.createElement('span')
+      tag.className = 'pending-archive-tag'
+      tag.textContent = 'Pending archive'
+      el.appendChild(tag)
+      return
+    }
+
+    const x = makeXButton('walk-list-x', 'Archive walk')
+    x.addEventListener('click', async e => {
+      e.stopPropagation()
+      const label = walk.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      const ok = await showArchiveModal(label)
+      if (!ok) return
+      ctx.staging.push({ op: 'archive_walk', walkId: walk.id, payload: {} as Record<string, never> })
+    })
+    el.appendChild(x)
   })
 }
