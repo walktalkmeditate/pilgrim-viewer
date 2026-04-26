@@ -116,3 +116,79 @@ export function attachActivityDeletes(ctx: AffordanceContext): void {
     el.appendChild(x)
   })
 }
+
+export function attachInlineEditors(ctx: AffordanceContext): void {
+  const intentionEl = ctx.sidebar.querySelector<HTMLElement>('.intention-text')
+  if (intentionEl && ctx.walk.intention) attachSingleLineEditor(intentionEl, ctx.walk.intention, text => {
+    ctx.staging.push({ op: 'edit_intention', walkId: ctx.walk.id, payload: { text } })
+  })
+
+  const reflectionEl = ctx.sidebar.querySelector<HTMLElement>('.reflection-text')
+  if (reflectionEl && ctx.walk.reflection?.text) {
+    attachMultiLineEditor(reflectionEl, ctx.walk.reflection.text, text => {
+      ctx.staging.push({ op: 'edit_reflection_text', walkId: ctx.walk.id, payload: { text } })
+    })
+  }
+
+  // Voice transcriptions
+  const transcriptionEls = ctx.sidebar.querySelectorAll<HTMLElement>('.transcription-text, .voice-transcription')
+  Array.from(transcriptionEls).forEach((el, idx) => {
+    const rec = ctx.walk.voiceRecordings[idx]
+    if (!rec || !rec.transcription) return
+    attachMultiLineEditor(el, rec.transcription, text => {
+      const sd = Math.floor(rec.startDate.getTime() / 1000)
+      ctx.staging.push({ op: 'edit_transcription', walkId: ctx.walk.id, payload: { recordingStartDate: sd, text } })
+    })
+  })
+}
+
+function attachSingleLineEditor(el: HTMLElement, initial: string, onCommit: (text: string) => void): void {
+  el.classList.add('editable-text')
+  el.addEventListener('click', () => {
+    if (!document.body.classList.contains('tend-on')) return
+    if (el.querySelector('.editable-input')) return
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.className = 'editable-input'
+    input.value = el.textContent ?? initial
+    el.textContent = ''
+    el.appendChild(input)
+    input.focus()
+    input.select()
+    function commit(): void {
+      const text = input.value.trim()
+      el.textContent = text || initial
+      if (text && text !== initial) onCommit(text)
+    }
+    input.addEventListener('blur', commit)
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur() }
+      if (e.key === 'Escape') { input.value = initial; input.blur() }
+    })
+  })
+}
+
+function attachMultiLineEditor(el: HTMLElement, initial: string, onCommit: (text: string) => void): void {
+  el.classList.add('editable-text')
+  el.addEventListener('click', () => {
+    if (!document.body.classList.contains('tend-on')) return
+    if (el.querySelector('.editable-input')) return
+    const input = document.createElement('textarea')
+    input.className = 'editable-input'
+    input.rows = Math.max(2, Math.ceil((el.textContent ?? '').length / 60))
+    input.value = el.textContent ?? initial
+    el.textContent = ''
+    el.appendChild(input)
+    input.focus()
+    function commit(): void {
+      const text = input.value.trim()
+      el.textContent = text || initial
+      if (text && text !== initial) onCommit(text)
+    }
+    input.addEventListener('blur', commit)
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); input.blur() }
+      if (e.key === 'Escape') { input.value = initial; input.blur() }
+    })
+  })
+}
