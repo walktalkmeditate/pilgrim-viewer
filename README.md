@@ -53,6 +53,29 @@ Visit **[view.pilgrimapp.org](https://view.pilgrimapp.org)** and click a sample:
 
 Or drop your own `.gpx` or `.pilgrim` file.
 
+## Editor
+
+The same codebase serves a redactor / pruner at **edit.pilgrimapp.org**. Drop a `.pilgrim` or `.gpx` file, click **Tend**, and:
+
+- Archive whole walks (skeletal records preserve lifetime totals).
+- Delete sections, photos, voice recordings, pauses, activity segments.
+- Trim route start/end via map handles.
+- Edit intention, reflection, and voice-transcription text.
+
+All client-side; nothing uploaded. The editor is hostname-gated — the view bundle at `view.pilgrimapp.org` does not load any edit code.
+
+Local development:
+
+```bash
+npm run dev
+# View mode (default):
+open http://localhost:5173/
+# Edit mode (opt-in):
+open http://localhost:5173/?edit=1
+```
+
+Deploy: identical to the viewer — same GitHub Action, tag-triggered. Add a CNAME for `edit.pilgrimapp.org` pointing at the same Pages site.
+
 ## Development
 
 ```bash
