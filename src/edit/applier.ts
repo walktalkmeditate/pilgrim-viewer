@@ -1,5 +1,6 @@
 import type { Walk, Modification, DeletableSection } from '../parsers/types'
 import { recomputeStats } from './recompute'
+import { trimRouteSeparately } from '../parsers/route-trim'
 
 function dateToEpochSeconds(d: Date): number {
   return Math.floor(d.getTime() / 1000)
@@ -104,6 +105,18 @@ export function applyMods(walk: Walk, mods: Modification[]): Walk | null {
           : r,
       ),
     }
+    changed = true
+  }
+
+  // Route trim — last value wins (coalescence guarantees one mod per op per walk).
+  let startMeters = 0
+  let endMeters = 0
+  for (const m of mods) {
+    if (m.op === 'trim_route_start') startMeters = (m.payload as { meters: number }).meters
+    if (m.op === 'trim_route_end') endMeters = (m.payload as { meters: number }).meters
+  }
+  if (startMeters > 0 || endMeters > 0) {
+    next = { ...next, route: trimRouteSeparately(next.route, { startMeters, endMeters }) }
     changed = true
   }
 

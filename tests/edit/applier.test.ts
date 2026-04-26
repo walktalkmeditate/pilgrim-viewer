@@ -179,3 +179,37 @@ describe('applyMods — edit_transcription', () => {
     expect(out!.voiceRecordings[1].transcription).toBe('world')
   })
 })
+
+describe('applyMods — route trim', () => {
+  it('applies trim_route_start to walk.route', () => {
+    const w = makeWalk()
+    const out = applyMods(w, [
+      mkMod('trim_route_start', { meters: 50 }),
+    ])
+    expect(out!.route.features[0].geometry.coordinates).toHaveLength(2)
+  })
+
+  it('trims both ends when both mods present', () => {
+    const w = makeWalk()
+    w.route = {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: [[0, 0], [0.001, 0], [0.002, 0], [0.003, 0], [0.004, 0]] },
+        properties: { timestamps: [1000, 2000, 3000, 4000, 5000] },
+      }],
+    }
+    const out = applyMods(w, [
+      mkMod('trim_route_start', { meters: 50 }),
+      mkMod('trim_route_end', { meters: 50 }),
+    ])
+    expect(out!.route.features[0].geometry.coordinates).toHaveLength(3)
+  })
+
+  it('recomputes stats.distance from the trimmed route', () => {
+    const w = makeWalk()
+    const before = w.stats.distance
+    const out = applyMods(w, [mkMod('trim_route_start', { meters: 80 })])
+    expect(out!.stats.distance).toBeLessThan(before)
+  })
+})
