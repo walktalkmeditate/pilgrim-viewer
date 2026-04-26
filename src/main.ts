@@ -328,9 +328,15 @@ async function renderApp(): Promise<void> {
     rerender = renderMultiWalk(layout, mapRenderer, token, applyPrivacy, onPhotoSelect)
   } else {
     const walk = currentWalks[0]
+    let displayWalk = walk
+    if (editApi) {
+      const { applyMods } = await import('./edit/applier')
+      const tended = applyMods(walk, editApi.staging.list())
+      if (tended) displayWalk = tended
+    }
     const pf = privacyZone.getMeters() > 0
-    mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
-    renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
+    mapRenderer.showWalk(applyPrivacy(displayWalk), { privacyFade: pf })
+    renderPanels(layout.sidebar, displayWalk, currentManifest, currentUnit, onPhotoSelect)
 
     if (editApi && walk.source === 'pilgrim') {
       runDetachEdit()
@@ -343,10 +349,16 @@ async function renderApp(): Promise<void> {
       })
     }
 
-    rerender = () => {
+    rerender = async () => {
+      let displayWalk = walk
+      if (editApi) {
+        const { applyMods } = await import('./edit/applier')
+        const tended = applyMods(walk, editApi.staging.list())
+        if (tended) displayWalk = tended
+      }
       const pf = privacyZone.getMeters() > 0
-      mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
-      renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
+      mapRenderer.showWalk(applyPrivacy(displayWalk), { privacyFade: pf })
+      renderPanels(layout.sidebar, displayWalk, currentManifest, currentUnit, onPhotoSelect)
       if (editApi && walk.source === 'pilgrim') {
         runDetachEdit()
         detachEdit = editApi.attachToWalkUI({
@@ -358,6 +370,10 @@ async function renderApp(): Promise<void> {
         })
       }
     }
+  }
+
+  if (editApi) {
+    editApi.staging.subscribe(() => rerender())
   }
 }
 
