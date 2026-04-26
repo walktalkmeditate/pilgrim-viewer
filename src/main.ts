@@ -24,9 +24,23 @@ import { trimRouteEnds } from './parsers/route-trim'
 
 const app = document.getElementById('app')!
 
+const isEditHost = location.hostname.startsWith('edit.')
+const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+const enableEdit = isEditHost || (isLocalDev && new URLSearchParams(location.search).has('edit'))
+
+let editApi: import('./edit').EditApi | null = null
+async function ensureEditMounted(headerControls: HTMLElement): Promise<void> {
+  if (!enableEdit || editApi) return
+  const { mountEditLayer } = await import('./edit')
+  editApi = mountEditLayer(headerControls, app)
+}
+
 let currentWalks: Walk[] = []
 let currentRawWalks: unknown[] = []
 let currentManifest: PilgrimManifest | undefined
+let originalPilgrimBuffer: ArrayBuffer | undefined
+let originalGpxXml: string | undefined
+let currentLoadedFilename: string | undefined
 // Monotonic counter bumped on every handleFile entry AND on goHome.
 // Each in-flight handleFile captures a local snapshot at entry; after
 // the async parse resolves, it compares the captured value to the live
@@ -49,6 +63,26 @@ window.addEventListener('pilgrimdatarequest', () => {
     window.dispatchEvent(new CustomEvent('pilgrimdataresponse', {
       detail: { walks: currentWalks, rawWalks: currentRawWalks, manifest: currentManifest, trimMeters: privacyZone.getMeters() },
     }))
+  }
+})
+
+window.addEventListener('pilgrim-edit-save-requested', async () => {
+  if (!editApi) return
+  if (currentWalks.length === 0) return
+  const source = currentWalks[0].source
+  const originalFilename = currentLoadedFilename ?? (source === 'pilgrim' ? 'walk.pilgrim' : 'walk.gpx')
+  if (source === 'pilgrim') {
+    if (!currentManifest || !originalPilgrimBuffer) return
+    await editApi.saveAll({
+      source: 'pilgrim',
+      originalBuffer: originalPilgrimBuffer,
+      manifest: currentManifest,
+      rawWalks: currentRawWalks,
+      originalFilename,
+    })
+  } else {
+    if (!originalGpxXml) return
+    await editApi.saveAll({ source: 'gpx', originalXml: originalGpxXml, originalFilename })
   }
 })
 
@@ -142,14 +176,19 @@ async function handleFile(name: string, buffer: ArrayBuffer): Promise<void> {
     let newRawWalks: unknown[] = []
     let newManifest: PilgrimManifest | undefined
     if (name.endsWith('.pilgrim')) {
+      originalPilgrimBuffer = buffer
+      originalGpxXml = undefined
       const result = await parsePilgrim(buffer)
       newWalks = result.walks
       newRawWalks = result.rawWalks
       newManifest = result.manifest
     } else {
+      originalPilgrimBuffer = undefined
       const text = new TextDecoder().decode(buffer)
+      originalGpxXml = text
       newWalks = parseGPX(text)
     }
+    currentLoadedFilename = name
 
     if (generation !== handleFileGeneration) {
       // A newer handleFile (or goHome) superseded this call while we
@@ -244,6 +283,7 @@ function renderApp(): void {
   })
   layout.headerControls.appendChild(privacyZone.container)
   createMoonToggle(layout.headerControls)
+  void ensureEditMounted(layout.headerControls)
 
   function applyPrivacy(walk: Walk): Walk {
     const meters = privacyZone.getMeters()
@@ -277,10 +317,29 @@ function renderApp(): void {
     mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
     renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
 
+    if (editApi && walk.source === 'pilgrim') {
+      editApi.attachToWalkUI({
+        walk,
+        rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
+        sidebar: layout.sidebar,
+        map: mapRenderer.getMap(),
+        refreshPreview: () => mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: privacyZone.getMeters() > 0 }),
+      })
+    }
+
     rerender = () => {
       const pf = privacyZone.getMeters() > 0
       mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
       renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
+      if (editApi && walk.source === 'pilgrim') {
+        editApi.attachToWalkUI({
+          walk,
+          rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
+          sidebar: layout.sidebar,
+          map: mapRenderer.getMap(),
+          refreshPreview: () => mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: privacyZone.getMeters() > 0 }),
+        })
+      }
     }
   }
 }
@@ -314,6 +373,10 @@ function renderMultiWalk(
       mapRenderer.showWalk(applyPrivacy(walk), { privacyFade: pf })
       renderPanels(layout.sidebar, walk, currentManifest, currentUnit, onPhotoSelect)
     }, currentUnit)
+
+    if (editApi) {
+      editApi.attachToWalkListUI({ walks: currentWalks, sidebar: layout.sidebar })
+    }
 
     const selectIdx = selectedWalk ? currentWalks.indexOf(selectedWalk) : 0
     walkList.select(selectIdx >= 0 ? selectIdx : 0)
