@@ -169,4 +169,63 @@ describe('serializeTendedGpx', () => {
     const text = await blobToText(result.blob)
     expect((text.match(/<trkpt/g) ?? []).length).toBeLessThan(4)
   })
+
+  // fast-xml-parser returns a single object (not an array) when the
+  // XML has only one <wpt>. The serializer must handle both shapes
+  // via asArray — a regression here would silently drop or duplicate
+  // the lone waypoint.
+  it('handles a single-waypoint GPX (fast-xml-parser returns object, not array)', async () => {
+    const { serializeTendedGpx } = await import('../../src/edit/save')
+    const singleWpGpx = `<?xml version="1.0"?>
+<gpx version="1.1" creator="test">
+  <wpt lat="0.001" lon="0"><name>OnlyWP</name></wpt>
+  <trk><name>Test</name><trkseg>
+    <trkpt lat="0" lon="0"><ele>100</ele></trkpt>
+    <trkpt lat="0.001" lon="0"><ele>105</ele></trkpt>
+  </trkseg></trk>
+</gpx>`
+    // Round-trip with no mods — single wpt should survive verbatim.
+    const noopResult = await serializeTendedGpx({
+      originalXml: singleWpGpx,
+      modifications: [],
+      originalFilename: 'single.gpx',
+    })
+    const noopText = await blobToText(noopResult.blob)
+    expect(noopText).toContain('OnlyWP')
+
+    // Delete the single wpt — no remaining <wpt> should appear.
+    const delResult = await serializeTendedGpx({
+      originalXml: singleWpGpx,
+      modifications: [mkMod('delete_waypoint', { lat: 0.001, lng: 0 })],
+      originalFilename: 'single.gpx',
+    })
+    const delText = await blobToText(delResult.blob)
+    expect(delText).not.toContain('OnlyWP')
+    expect(delText).not.toContain('<wpt')
+  })
+
+  // Same array-vs-object concern for trkseg/trkpt — fast-xml-parser
+  // returns a single object when there's only one. trimTrkpts must
+  // still receive a workable list via asArray.
+  it('handles a single-trkseg-with-multiple-trkpts (object-shaped trkseg)', async () => {
+    const { serializeTendedGpx } = await import('../../src/edit/save')
+    const xml = `<?xml version="1.0"?>
+<gpx version="1.1" creator="test">
+  <trk><name>One</name><trkseg>
+    <trkpt lat="0" lon="0"><ele>100</ele></trkpt>
+    <trkpt lat="0.001" lon="0"><ele>105</ele></trkpt>
+    <trkpt lat="0.002" lon="0"><ele>110</ele></trkpt>
+    <trkpt lat="0.003" lon="0"><ele>115</ele></trkpt>
+  </trkseg></trk>
+</gpx>`
+    const result = await serializeTendedGpx({
+      originalXml: xml,
+      modifications: [mkMod('trim_route_start', { meters: 50 })],
+      originalFilename: 'one-trk.gpx',
+    })
+    const text = await blobToText(result.blob)
+    // Trim should drop at least the first trkpt (∼111m segment > 50m).
+    expect((text.match(/<trkpt/g) ?? []).length).toBeLessThan(4)
+    expect((text.match(/<trkpt/g) ?? []).length).toBeGreaterThanOrEqual(2)
+  })
 })

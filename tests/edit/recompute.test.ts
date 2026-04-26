@@ -98,4 +98,16 @@ describe('recomputeStats', () => {
     expect(stats.steps).toBeUndefined()
     expect(stats.burnedEnergy).toBeUndefined()
   })
+
+  it('does not produce NaN when original.distance is 0 (divide-by-zero guard)', () => {
+    const walk = baseWalk()
+    const original: WalkStats = { ...walk.stats, distance: 0, steps: 1000, burnedEnergy: 200 }
+    const stats = recomputeStats(walk, original)
+    // distRatio falls back to 1 when original.distance <= 0; scaled
+    // fields stay at their original values rather than going NaN.
+    expect(Number.isNaN(stats.steps as number)).toBe(false)
+    expect(Number.isNaN(stats.burnedEnergy as number)).toBe(false)
+    expect(stats.steps).toBe(1000)
+    expect(stats.burnedEnergy).toBe(200)
+  })
 })
