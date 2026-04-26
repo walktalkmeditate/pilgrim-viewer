@@ -131,6 +131,7 @@ export interface Walk {
   favicon?: string
   photos?: WalkPhoto[]
   source: 'pilgrim' | 'gpx'
+  isUserModified?: boolean
 }
 
 export interface PilgrimPreferences {
@@ -146,4 +147,58 @@ export interface PilgrimManifest {
   appVersion: string
   walkCount: number
   preferences: PilgrimPreferences
+  // Edit-layer additions (additive; absent in older files):
+  archivedCount?: number
+  archived?: ArchivedWalk[]
+  modifications?: Modification[]
+}
+
+export interface ArchivedWalk {
+  id: string                 // original walk id (UUID)
+  startDate: number          // epoch seconds
+  endDate: number            // epoch seconds
+  archivedAt: number         // epoch seconds — when this transition happened
+  stats: {
+    distance: number         // meters
+    activeDuration: number   // seconds
+    talkDuration: number     // seconds
+    meditateDuration: number // seconds
+    steps?: number
+  }
+}
+
+export type ModOp =
+  | 'archive_walk'
+  | 'replace_walk'
+  | 'delete_section'
+  | 'delete_photo'
+  | 'delete_voice_recording'
+  | 'delete_pause'
+  | 'delete_activity'
+  | 'delete_waypoint'
+  | 'trim_route_start'
+  | 'trim_route_end'
+  | 'edit_intention'
+  | 'edit_reflection_text'
+  | 'edit_transcription'
+
+export type DeletableSection = 'intention' | 'reflection' | 'weather' | 'celestial'
+
+export type ModPayload =
+  | Record<string, never>                                                  // archive_walk
+  | { walk: unknown }                                                      // replace_walk (raw walk JSON)
+  | { section: DeletableSection }                                          // delete_section
+  | { localIdentifier: string }                                            // delete_photo
+  | { startDate: number }                                                  // delete_voice_recording / pause / activity
+  | { lat: number; lng: number }                                           // delete_waypoint
+  | { meters: number }                                                     // trim_route_start / trim_route_end
+  | { text: string }                                                       // edit_intention / edit_reflection_text
+  | { recordingStartDate: number; text: string }                           // edit_transcription
+
+export interface Modification {
+  id: string                 // uuid (the drawer references this for undo)
+  at: number                 // epoch ms when staged (Date.now())
+  op: ModOp
+  walkId?: string            // present for walk-scoped ops
+  payload: ModPayload
 }
