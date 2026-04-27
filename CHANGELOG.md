@@ -4,6 +4,51 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-04-26
+
+### Added — Editor (`edit.pilgrimapp.org`)
+
+- New hostname-gated **redactor / pruner** at `edit.pilgrimapp.org`, served from the same Pages site. The view-only bundle at `view.pilgrimapp.org` is unchanged — the edit module is dynamic-imported only when `location.hostname.startsWith('edit.')` (or `?edit=1` on localhost), so the view bundle adds zero bytes.
+- **Tend mode** toggle revealing destructive affordances. View mode = unchanged viewer behavior.
+- **Archive walks** in multi-walk files — adds a skeletal record (id, dates, distance, durations, optional steps) to a new `manifest.archived[]` so lifetime aggregates in the file remain intact even when content is removed. Removed walks' `walks/<id>.json` and embedded `photos/<filename>.jpg` are dropped from the ZIP.
+- **Section deletes**: intention, reflection, weather, celestial — × button on each panel.
+- **List-item deletes**: photos (× per thumbnail), voice recordings (× per transcription entry).
+- **Inline text edit**: intention (single-line), reflection text + voice transcription (multi-line) — click into rendered text in Tend mode, blur or Cmd+Enter to commit.
+- **Map trim handles** for route start and end with live preview — polyline updates as the user drags. Stats recompute (distance, ascent/descent, durations; steps + burnedEnergy scaled proportionally to distRatio).
+- **GPX support**: trim route start/end (multi-segment GPX trims first/last seg only), delete waypoints by lat/lng. Round-trips through fast-xml-parser AST so track names, namespaces, and extensions survive.
+- **Modifications log** in `manifest.modifications[]` — every staged op recorded with op + walkId + payload + timestamp. Cumulative across save sessions; opt-out via "Include tending history" checkbox in the drawer.
+- **iOS Codable schema validator** (`validatePilgrimManifest`) runs on every save and asserts the full iOS `PilgrimManifest` shape — required arrays (`customPromptStyles`, `intentions`, `events`), full `preferences` set including `celestialAwareness` / `zodiacSystem` / `beginWithIntention`. Save fails loud rather than producing an unimportable file.
+- Save flow: produces a `<originalstem>-tended.<ext>` download. Original on disk untouched (browser can't write back). After successful save, the editor re-parses the saved blob and re-syncs in-memory state so subsequent saves preserve cumulative `manifest.modifications` history and live preview matches what was just written.
+
+### Architecture
+
+- New `src/edit/` layer: `staging.ts`, `applier.ts`, `recompute.ts`, `archive.ts`, `save.ts`, `tend-toggle.ts`, `drawer.ts`, `affordances.ts`, `trim-handles.ts`, `archive-modal.ts`, `json-mode.ts`, `index.ts` orchestrator + `edit.css`.
+- Pure-function core: `applyMods(walk, mods) → walk | null`, `recomputeStats`, `walkToArchived`, `trimRouteSeparately`, `serializeTendedPilgrim`, `serializeTendedGpx` — no DOM, no I/O.
+- Affordances inject from `edit/affordances.ts` via DOM hooks (querySelector + event listeners). Existing renderers in `panels/`, `ui/`, `map/` are untouched.
+- Hostname routing for `edit.pilgrimapp.org` is handled by a small Cloudflare Worker (`pilgrim-edit-router`) that proxies the request to `view.pilgrimapp.org`'s Pages site with the Host header rewritten — same bundle, two URLs, no second Pages deploy.
+- 60+ new tests across 10 new test files (`tests/edit/`). Total: **278+ passing**.
+
+### Changed (parsers — additive only)
+
+- `parsers/types.ts`: new exports `ArchivedWalk`, `Modification`, `ModOp`, `ModPayload`, `DeletableSection`. `PilgrimManifest` extended with optional `archivedCount`, `archived`, `modifications`. `Walk` extended with optional `isUserModified`.
+- `parsers/pilgrim.ts`: reads `manifest.archived` / `manifest.modifications` (defaults to empty arrays for legacy files). Backward-compat additive — no behavior change for view-only callers.
+- `parsers/route-trim.ts`: new `trimRouteSeparately({ startMeters, endMeters })` for per-walk trim with separate values. Existing `trimRouteEnds` (privacy-zone consumer) unchanged.
+- `parsers/gpx.ts`: new `parseGPXWithAst` returning `{ walks, ast }` for round-trip-safe GPX editing. Existing `parseGPX` unchanged.
+
+### iOS Reimport
+
+- Tended `.pilgrim` files preserve every iOS-required `manifest` field (validated on every save).
+- Walk-level required iOS fields (`heartRates`, `workoutEvents`, `isRace`, `isUserModified`, `finishedRecording`, `schemaVersion`, `type`) round-trip via `applyEditsToRawWalk`'s spread semantics — never stripped.
+- iOS does not yet know about `manifest.archived` / `manifest.modifications` — Swift `JSONDecoder` ignores unknown keys, so reimport works, but iOS aggregate stats after reimport reflect only active walks (archive shadows are invisible to iOS in this release). Pairing iOS update is a separate roadmap item.
+
+### Known Limitations (deferred to v1.5+)
+
+- **JSON expert mode** — `src/edit/json-mode.ts` exists but is not wired into any UI surface. The `replace_walk` op is unreachable today.
+- **Multi-segment GPX trim** — preview vs save can diverge when trim distance exceeds the first/last segment's length. Save trims first/last seg only; preview operates on the parsed walk's flattened LineString.
+- **Multi-touch trim drag (iPad)** — releasing one handle's `dragend` rebuilds both markers, which can cancel an in-progress drag on the other.
+- **Inline editor blank-and-blur** — clearing an intention via the inline editor reverts visually but leaves the prior staged edit. The drawer still shows the pending mod.
+- **Trim handle position** — handles seed at the original route endpoints rather than at the staged-trimmed endpoints. Drag math is correct (always meters from original); UX is the trade-off.
+
 ## [1.3.0] - 2026-04-15
 
 ### Added
