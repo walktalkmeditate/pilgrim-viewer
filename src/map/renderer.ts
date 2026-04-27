@@ -42,15 +42,25 @@ export function createMapRenderer(
     zoom: 1,
   })
 
+  // Only surface the auth error if the *style* itself failed to load —
+  // i.e. the user actually has no map visible. Transient 401/403s on
+  // sub-resources (tile retries, glyph/sprite fetches, token-allowlist
+  // propagation races) used to leak a permanent overlay onto a working
+  // map. Guarded by `styleLoaded` and a one-shot `errorShown` so we
+  // never paint twice and we never paint after the map is rendering.
+  let styleLoaded = false
+  let errorShown = false
+  map.on('load', () => { styleLoaded = true })
   map.on('error', (e) => {
+    if (styleLoaded || errorShown) return
     const status = (e.error as Error & { status?: number }).status
-    if (status === 401 || status === 403) {
-      const msg = document.createElement('div')
-      msg.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-ui);font-size:0.875rem;color:var(--fog);text-align:center;'
-      msg.textContent = 'Map failed to load. Check your Mapbox token.'
-      container.style.position = 'relative'
-      container.appendChild(msg)
-    }
+    if (status !== 401 && status !== 403) return
+    errorShown = true
+    const msg = document.createElement('div')
+    msg.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-ui);font-size:0.875rem;color:var(--fog);text-align:center;'
+    msg.textContent = 'Map failed to load. Check your Mapbox token.'
+    container.style.position = 'relative'
+    container.appendChild(msg)
   })
 
   container.style.position = 'relative'

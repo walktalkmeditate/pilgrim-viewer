@@ -1,4 +1,7 @@
 import { createRouteAnimation } from './route-animation'
+import { appTitle, appSubtitle, isEditHost } from '../branding'
+
+declare const __APP_VERSION__: string
 
 const VALID_EXTENSIONS = ['.pilgrim', '.gpx']
 
@@ -70,11 +73,11 @@ export function createDropZone(
 
   const title = document.createElement('h1')
   title.className = 'dropzone-title'
-  title.textContent = 'Pilgrim Viewer'
+  title.textContent = appTitle()
 
   const subtitle = document.createElement('p')
   subtitle.className = 'dropzone-subtitle'
-  subtitle.textContent = 'See your walks. Your data stays with you.'
+  subtitle.textContent = appSubtitle()
 
   const button = document.createElement('button')
   button.className = 'dropzone-button'
@@ -164,14 +167,9 @@ export function createDropZone(
 
   wrapper.appendChild(githubLink)
 
-  const isEditHost = location.hostname.startsWith('edit.')
   const crossLink = document.createElement('a')
   crossLink.className = 'cross-link'
-  crossLink.style.fontSize = '0.85rem'
-  crossLink.style.opacity = '0.6'
-  crossLink.style.marginTop = '1rem'
-  crossLink.style.display = 'inline-block'
-  if (isEditHost) {
+  if (isEditHost()) {
     crossLink.textContent = 'View only? Open in the viewer'
     crossLink.href = `https://view.pilgrimapp.org/${location.search}`
   } else {
@@ -179,6 +177,11 @@ export function createDropZone(
     crossLink.href = `https://edit.pilgrimapp.org/${location.search}`
   }
   wrapper.appendChild(crossLink)
+
+  const versionEl = document.createElement('p')
+  versionEl.className = 'app-version'
+  versionEl.textContent = `v${__APP_VERSION__}`
+  wrapper.appendChild(versionEl)
 
   container.appendChild(wrapper)
 

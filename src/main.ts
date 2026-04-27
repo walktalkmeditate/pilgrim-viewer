@@ -22,12 +22,18 @@ import type { Walk, WalkPhoto, PilgrimManifest, PilgrimPreferences } from './par
 import { createPrivacyZone } from './ui/privacy-zone'
 import { trimRouteEnds } from './parsers/route-trim'
 import type { LiveTrim } from './edit/trim-handles'
+import { appTitle, appTabTitle, isEditHost } from './branding'
+
+// Set the tab title from JS so the same bundle serves either branding
+// at runtime. The Cloudflare Worker fronting edit.* also rewrites the
+// static <title> tag in index.html for social-share scrapers; this is
+// the in-tab fallback for environments where the worker doesn't run.
+document.title = appTabTitle()
 
 const app = document.getElementById('app')!
 
-const isEditHost = location.hostname.startsWith('edit.')
 const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
-const enableEdit = isEditHost || (isLocalDev && new URLSearchParams(location.search).has('edit'))
+const enableEdit = isEditHost() || (isLocalDev && new URLSearchParams(location.search).has('edit'))
 
 let editApi: import('./edit').EditApi | null = null
 let detachEdit: (() => void) | null = null
@@ -93,18 +99,25 @@ window.addEventListener('pilgrimdatarequest', () => {
 })
 
 window.addEventListener('pilgrim-edit-save-requested', async () => {
-  if (!editApi) return
-  if (currentWalks.length === 0) return
-  const source = currentWalks[0].source
-  const originalFilename = currentLoadedFilename ?? (source === 'pilgrim' ? 'walk.pilgrim' : 'walk.gpx')
-  // Capture the file-load generation at save start. The post-save event
-  // handler reads this back to bail if the user dropped a different file
-  // (or went home) while the save was in flight — without this guard,
-  // the handler would clobber the new file's state with the old file's
-  // saved data (and revoke the new file's blob URLs out from under the
-  // live DOM).
-  const generationAtSave = handleFileGeneration
+  // The drawer locks the save button when it dispatches this event and
+  // unlocks on either `pilgrim-edit-saved` (success, dispatched inside
+  // editApi.saveAll) or `pilgrim-edit-save-failed`. If we bail before
+  // saveAll runs OR throw before it dispatches, we MUST emit
+  // save-failed in the finally — otherwise the button stays disabled
+  // for the rest of the session.
+  let dispatchedSaved = false
   try {
+    if (!editApi) return
+    if (currentWalks.length === 0) return
+    const source = currentWalks[0].source
+    const originalFilename = currentLoadedFilename ?? (source === 'pilgrim' ? 'walk.pilgrim' : 'walk.gpx')
+    // Capture the file-load generation at save start. The post-save event
+    // handler reads this back to bail if the user dropped a different file
+    // (or went home) while the save was in flight — without this guard,
+    // the handler would clobber the new file's state with the old file's
+    // saved data (and revoke the new file's blob URLs out from under the
+    // live DOM).
+    const generationAtSave = handleFileGeneration
     if (source === 'pilgrim') {
       if (!currentManifest || !originalPilgrimBuffer) return
       await editApi.saveAll({
@@ -122,6 +135,7 @@ window.addEventListener('pilgrim-edit-save-requested', async () => {
         generation: generationAtSave,
       })
     }
+    dispatchedSaved = true
   } catch (err) {
     // Validation, ZIP corruption, or any other save-time failure. Surface
     // it instead of letting the unhandled rejection vanish into the
@@ -129,6 +143,10 @@ window.addEventListener('pilgrim-edit-save-requested', async () => {
     const msg = err instanceof Error ? err.message : 'Save failed'
     console.error('Save error:', err)
     alert(`Save failed: ${msg}`)
+  } finally {
+    if (!dispatchedSaved) {
+      window.dispatchEvent(new CustomEvent('pilgrim-edit-save-failed'))
+    }
   }
 })
 
@@ -357,7 +375,7 @@ function showError(message: string): void {
 
   const heading = document.createElement('h1')
   heading.className = 'dropzone-title'
-  heading.textContent = 'Pilgrim Viewer'
+  heading.textContent = appTitle()
 
   const errorMsg = document.createElement('p')
   errorMsg.className = 'dropzone-error visible'
@@ -488,6 +506,7 @@ async function renderApp(): Promise<void> {
       detachWalkUI()
       detachEdit = editApi.attachToWalkUI({
         walk,
+        displayWalk,
         rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
         sidebar: layout.sidebar,
         map: mapRenderer.getMap(),
@@ -508,6 +527,7 @@ async function renderApp(): Promise<void> {
         detachWalkUI()
         detachEdit = editApi.attachToWalkUI({
           walk,
+          displayWalk,
           rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
           sidebar: layout.sidebar,
           map: mapRenderer.getMap(),
@@ -560,6 +580,7 @@ function renderMultiWalk(
         detachWalkUI()
         detachEdit = editApi.attachToWalkUI({
           walk,
+          displayWalk,
           rawWalk: currentRawWalks[currentWalks.indexOf(walk)],
           sidebar: layout.sidebar,
           map: mapRenderer.getMap(),

@@ -1,5 +1,6 @@
 import type { Walk, WalkPhoto, PilgrimManifest } from '../parsers/types'
 import type { UnitSystem } from '../parsers/units'
+import { appTitle } from '../branding'
 import { renderSealPanel } from '../panels/seal'
 import { renderStatsPanel } from '../panels/stats'
 import { renderElevationPanel } from '../panels/elevation'
@@ -33,7 +34,7 @@ export function createLayout(app: HTMLElement, onHomeClick?: () => void): Layout
 
   const title = document.createElement('button')
   title.className = 'app-title'
-  title.textContent = 'Pilgrim Viewer'
+  title.textContent = appTitle()
   title.addEventListener('click', () => {
     if (onHomeClick) onHomeClick()
   })

@@ -173,6 +173,31 @@ body {
   opacity: 1;
 }
 
+.cross-link {
+  color: var(--fog);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-family: var(--font-display);
+  font-style: italic;
+  opacity: 0.5;
+  margin-top: 1rem;
+  display: inline-block;
+  transition: opacity 0.2s;
+}
+
+.cross-link:hover {
+  opacity: 1;
+}
+
+.app-version {
+  color: var(--fog);
+  font-size: 0.75rem;
+  font-family: var(--font-display);
+  opacity: 0.35;
+  margin-top: 1rem;
+  letter-spacing: 0.08em;
+}
+
 .dropzone-quote {
   font-family: var(--font-display);
   font-style: italic;

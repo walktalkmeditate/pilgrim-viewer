@@ -26,7 +26,12 @@ function describeMod(mod: Modification): string {
 }
 
 export interface DrawerCallbacks {
-  onSave: (includeHistory: boolean) => void
+  // Returning a Promise lets the drawer disable the save button until
+  // the save settles. main.ts wires this to wait for either
+  // `pilgrim-edit-saved` or `pilgrim-edit-save-failed` so a slow zip
+  // generation (large files with photos) can't be re-triggered by a
+  // panicked second click.
+  onSave: (includeHistory: boolean) => void | Promise<void>
 }
 
 export interface Drawer {
@@ -57,10 +62,24 @@ export function createStagingDrawer(staging: Staging, callbacks: DrawerCallbacks
   historyLabel.appendChild(historyCheckbox)
   historyLabel.appendChild(historyText)
 
+  const SAVE_LABEL = 'Save tended file'
   const saveBtn = document.createElement('button')
   saveBtn.className = 'staging-drawer-save'
-  saveBtn.textContent = 'Save tended file'
-  saveBtn.addEventListener('click', () => callbacks.onSave(historyCheckbox.checked))
+  saveBtn.textContent = SAVE_LABEL
+  let saving = false
+  saveBtn.addEventListener('click', async () => {
+    if (saving) return
+    saving = true
+    saveBtn.disabled = true
+    saveBtn.textContent = 'Saving…'
+    try {
+      await callbacks.onSave(historyCheckbox.checked)
+    } finally {
+      saving = false
+      saveBtn.disabled = false
+      saveBtn.textContent = SAVE_LABEL
+    }
+  })
 
   let discardArmed = false
   const discardBtn = document.createElement('button')

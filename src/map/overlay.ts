@@ -111,15 +111,23 @@ export function createOverlayRenderer(
     zoom: 1,
   })
 
+  // See note in renderer.ts — only surface the auth error if the style
+  // itself failed to load, and only once. Transient sub-resource 401/403
+  // events (tile retries, glyph/sprite fetches, token allowlist races)
+  // shouldn't leak a permanent overlay onto a working map.
+  let styleLoaded = false
+  let errorShown = false
+  map.on('load', () => { styleLoaded = true })
   map.on('error', (e) => {
+    if (styleLoaded || errorShown) return
     const status = (e.error as Error & { status?: number }).status
-    if (status === 401 || status === 403) {
-      const msg = document.createElement('div')
-      msg.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-ui);font-size:0.875rem;color:var(--fog);text-align:center;'
-      msg.textContent = 'Map failed to load. Check your Mapbox token.'
-      container.style.position = 'relative'
-      container.appendChild(msg)
-    }
+    if (status !== 401 && status !== 403) return
+    errorShown = true
+    const msg = document.createElement('div')
+    msg.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-ui);font-size:0.875rem;color:var(--fog);text-align:center;'
+    msg.textContent = 'Map failed to load. Check your Mapbox token.'
+    container.style.position = 'relative'
+    container.appendChild(msg)
   })
 
   container.style.position = 'relative'

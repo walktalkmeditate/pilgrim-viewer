@@ -23,6 +23,13 @@ export interface EditApi {
   applyMods(walk: Walk, mods: Modification[]): Walk | null
   attachToWalkUI(opts: {
     walk: Walk
+    // The post-mod walk currently rendered in the panels. Defaults to
+    // walk if not supplied. Affordances that index into rendered DOM
+    // (delete-photo, delete-voice-recording, inline transcription
+    // editors) MUST use displayWalk so the DOM index aligns with the
+    // walk's array index — otherwise after the first delete the next
+    // × maps to the wrong photo/recording.
+    displayWalk?: Walk
     rawWalk?: unknown
     sidebar: HTMLElement
     map?: mapboxgl.Map
@@ -54,7 +61,12 @@ export interface SaveOptions {
 export function mountEditLayer(headerControls: HTMLElement, app: HTMLElement): EditApi {
   const staging = createStaging()
   const toggle = createTendToggle(false)
-  headerControls.appendChild(toggle.element)
+  // Place Tend right after the existing "Open another file" button —
+  // both are mode-changing affordances and look visually similar, so
+  // grouping them on the left reads cleanly. createLayout inserts the
+  // openButton at firstChild; we slot Tend in just after it.
+  const tendInsertionPoint = headerControls.firstChild?.nextSibling ?? null
+  headerControls.insertBefore(toggle.element, tendInsertionPoint)
 
   const drawerHost = document.createElement('div')
   app.appendChild(drawerHost)
@@ -62,9 +74,22 @@ export function mountEditLayer(headerControls: HTMLElement, app: HTMLElement): E
   let pendingHistoryToggle = true
 
   const drawer = createStagingDrawer(staging, {
+    // Returns a Promise that resolves once the save settles (success
+    // OR failure) so the drawer can lock the save button while a
+    // serialize is in flight. Without this, a double-click on a slow
+    // save (large .pilgrim with photos) produces two downloads.
     onSave: includeHistory => {
       pendingHistoryToggle = includeHistory
-      window.dispatchEvent(new CustomEvent('pilgrim-edit-save-requested'))
+      return new Promise<void>(resolve => {
+        const finish = (): void => {
+          window.removeEventListener('pilgrim-edit-saved', finish)
+          window.removeEventListener('pilgrim-edit-save-failed', finish)
+          resolve()
+        }
+        window.addEventListener('pilgrim-edit-saved', finish, { once: true })
+        window.addEventListener('pilgrim-edit-save-failed', finish, { once: true })
+        window.dispatchEvent(new CustomEvent('pilgrim-edit-save-requested'))
+      })
     },
   })
   drawerHost.appendChild(drawer.element)
@@ -73,14 +98,22 @@ export function mountEditLayer(headerControls: HTMLElement, app: HTMLElement): E
     staging,
     toggle,
     applyMods,
-    attachToWalkUI({ walk, sidebar, map, refreshPreview }) {
+    attachToWalkUI({ walk, displayWalk, sidebar, map, refreshPreview }) {
       const cleanups: (() => void)[] = []
-      attachSectionDeletes({ staging, walk, sidebar })
-      attachPhotoDeletes({ staging, walk, sidebar })
-      attachVoiceRecordingDeletes({ staging, walk, sidebar })
-      attachPauseDeletes({ staging, walk, sidebar })
-      attachActivityDeletes({ staging, walk, sidebar })
-      attachInlineEditors({ staging, walk, sidebar })
+      // Affordances that read from rendered DOM list items (deletes,
+      // inline editors) need the post-mod walk so their array indexes
+      // line up with the panels' rendering. Without this, after the
+      // first delete every subsequent × targets the wrong item.
+      const renderWalk = displayWalk ?? walk
+      attachSectionDeletes({ staging, walk: renderWalk, sidebar })
+      attachPhotoDeletes({ staging, walk: renderWalk, sidebar })
+      attachVoiceRecordingDeletes({ staging, walk: renderWalk, sidebar })
+      attachPauseDeletes({ staging, walk: renderWalk, sidebar })
+      attachActivityDeletes({ staging, walk: renderWalk, sidebar })
+      attachInlineEditors({ staging, walk: renderWalk, sidebar })
+      // Trim handles anchor on the ORIGINAL walk's endpoints so the
+      // dragged-meters value is always measured from the source route's
+      // start/end (matching the staged trim_route_* mod's semantics).
       if (map) {
         const handles = attachTrimHandles({ map, walk, staging, refreshPreview })
         cleanups.push(() => handles.destroy())

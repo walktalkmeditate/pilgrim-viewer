@@ -4,6 +4,31 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - 2026-04-27
+
+Polish release for the editor — bug fixes from production review of `edit.pilgrimapp.org`. No new features, no schema changes.
+
+### Fixed
+
+- **Tend toggle was invisible when active.** The `.tend-toggle.active` rule used `background: currentColor; color: var(--parchment)`, which self-references — `currentColor` IS the foreground, so foreground and background ended up identical and the button vanished. Replaced with explicit `var(--ink)` / `var(--parchment)`.
+- **Map "failed to load" overlay leaked onto a working map.** Mapbox fires `error` events for transient sub-resource 401/403s (tile retries, glyph/sprite fetches, token-allowlist propagation races) even when the style itself loaded fine. The overlay is now guarded by a `styleLoaded` flag and a one-shot `errorShown` so it only paints if the style actually failed, and never paints twice. Applies to both `src/map/renderer.ts` (single-walk) and `src/map/overlay.ts` (overlay mode).
+- **Walk-list × wasn't prominent or correctly placed.** Repositioned to the top-right of each row with absolute positioning, larger tap target, and a hover-reveal opacity transition. Tend mode adds right padding so the × doesn't overlap the walk text.
+- **Photo × was invisible against thumbnails.** Now absolute-positioned over each thumbnail's top-right with a parchment circle background, drop shadow, and `z-index: 2` so it sits above the `<img>`. The grid item is now `position: relative` so the × anchors to the thumbnail rather than `<body>`.
+- **Last transcription delete targeted the wrong row.** Affordances indexed into `walk.voiceRecordings` (pre-mod) but the panels rendered from the post-mod `displayWalk`, so after the first delete every subsequent × was off by one. `EditApi.attachToWalkUI` now accepts `displayWalk` and uses it for affordance attachment while trim handles still anchor on the original walk's endpoints.
+- **Drawer was cramped and unreadable on mobile.** Reworked as CSS Grid with a `<= 720px` breakpoint that stacks `count + actions` above the per-mod list, drops the history toggle, and tightens padding.
+
+### Added
+
+- **Hostname-aware branding.** `view.pilgrimapp.org` shows "Pilgrim Viewer / See your walks…" while `edit.pilgrimapp.org` shows "Pilgrim Editor / Tend your walks…". Tab title, header, dropzone, and cross-link copy all flip via the new `src/branding.ts` helpers. Static `<title>` and OG/Twitter meta tags in `index.html` are rewritten by the Cloudflare Worker (`pilgrim-edit-router`) using `HTMLRewriter` so social-share scrapers see the right product name.
+- **Cross-link affordance** on the dropzone — "Tend a file? Open in the editor" / "View only? Open in the viewer" — preserves `location.search` across the host hop.
+- **Version chip** on the dropzone (`v1.4.1`), pulled from `package.json` at build time via Vite's `define`.
+- **Save button locks during in-flight save.** A double-click on a slow zip-generation no longer produces two downloads. The drawer's `onSave` now returns a Promise that resolves on either `pilgrim-edit-saved` (success) or a new `pilgrim-edit-save-failed` event; the button shows "Saving…" and stays `disabled` until the save settles, with a `try/finally` in the save-requested handler guaranteeing the lock always releases.
+
+### Operator Notes
+
+- **Mapbox token URL whitelist.** If you've configured a custom Mapbox token, add `edit.pilgrimapp.org` alongside `view.pilgrimapp.org` to its allowlist in the Mapbox dashboard. Without this, tile requests on the editor host return 401 and the map shows the "failed to load" overlay.
+- **localStorage is per-origin.** Tokens, privacy zone, color theme, and theme preference set on `view.*` don't carry to `edit.*` (and vice versa). This is a property of subdomain isolation, not a regression.
+
 ## [1.4.0] - 2026-04-26
 
 ### Added — Editor (`edit.pilgrimapp.org`)
