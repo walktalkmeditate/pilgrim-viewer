@@ -3,7 +3,7 @@ import type { UnitSystem } from '../parsers/units'
 import { formatDistance } from '../parsers/units'
 import { resolveWaypointIcon, getWaypointIconSvg } from '../map/waypoint-icons'
 
-function distanceFromStart(walk: Walk, waypointCoord: number[]): number {
+export function distanceFromStart(walk: Walk, waypointCoord: number[]): number {
   const lineFeature = walk.route.features.find(f => f.geometry.type === 'LineString')
   if (!lineFeature) return 0
 

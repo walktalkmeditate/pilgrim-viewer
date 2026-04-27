@@ -84,6 +84,25 @@ function applyEditsToRawWalk(raw: unknown, walkMods: Modification[]): unknown {
       const photos = (obj.photos as Record<string, unknown>[] | undefined) ?? []
       obj.photos = photos.filter(p => p.localIdentifier !== id)
       changed = true
+    } else if (m.op === 'delete_waypoint') {
+      const p = m.payload as { lat: number; lng: number }
+      const route = obj.route as Record<string, unknown> | undefined
+      if (route && Array.isArray(route.features)) {
+        const features = route.features as Record<string, unknown>[]
+        obj.route = {
+          ...route,
+          features: features.filter(f => {
+            const geom = f.geometry as Record<string, unknown> | undefined
+            if (!geom || geom.type !== 'Point') return true
+            const props = f.properties as Record<string, unknown> | undefined
+            if (!props || props.markerType !== 'waypoint') return true
+            const coords = geom.coordinates as number[] | undefined
+            if (!coords) return true
+            return !(coords[1] === p.lat && coords[0] === p.lng)
+          }),
+        }
+        changed = true
+      }
     } else if (m.op === 'delete_voice_recording' || m.op === 'delete_pause' || m.op === 'delete_activity') {
       const sd = (m.payload as { startDate: number }).startDate
       const key = m.op === 'delete_voice_recording' ? 'voiceRecordings'

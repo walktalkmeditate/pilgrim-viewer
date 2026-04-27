@@ -6,7 +6,7 @@ import { serializeTendedPilgrim, serializeTendedGpx, triggerDownload } from './s
 import {
   attachSectionDeletes, attachPhotoDeletes, attachVoiceRecordingDeletes,
   attachPauseDeletes, attachActivityDeletes, attachInlineEditors,
-  attachWalkListDeletes,
+  attachWalkListDeletes, attachWaypointDeletes,
 } from './affordances'
 import { attachTrimHandles } from './trim-handles'
 import type { LiveTrim } from './trim-handles'
@@ -110,6 +110,7 @@ export function mountEditLayer(headerControls: HTMLElement, app: HTMLElement): E
       attachVoiceRecordingDeletes({ staging, walk: renderWalk, sidebar })
       attachPauseDeletes({ staging, walk: renderWalk, sidebar })
       attachActivityDeletes({ staging, walk: renderWalk, sidebar })
+      attachWaypointDeletes({ staging, walk: renderWalk, sidebar })
       attachInlineEditors({ staging, walk: renderWalk, sidebar })
       // Trim handles anchor on the ORIGINAL walk's endpoints so the
       // dragged-meters value is always measured from the source route's

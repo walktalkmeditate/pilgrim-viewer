@@ -1,6 +1,7 @@
-import type { Walk, DeletableSection } from '../parsers/types'
+import type { Walk, DeletableSection, GeoJSONFeature } from '../parsers/types'
 import type { Staging } from './staging'
 import { showArchiveModal } from './archive-modal'
+import { distanceFromStart } from '../panels/waypoints'
 
 export interface AffordanceContext {
   staging: Staging
@@ -94,6 +95,32 @@ export function attachVoiceRecordingDeletes(ctx: AffordanceContext): void {
   })
 }
 
+export function attachWaypointDeletes(ctx: AffordanceContext): void {
+  const waypoints = ctx.walk.route.features.filter(
+    (f): f is GeoJSONFeature => f.geometry.type === 'Point' && f.properties.markerType === 'waypoint',
+  )
+  if (waypoints.length === 0) return
+
+  // Same sort renderWaypointsPanel uses (distance from route start),
+  // so DOM index lines up with this array.
+  const sorted = waypoints
+    .map(wp => ({ wp, dist: distanceFromStart(ctx.walk, wp.geometry.coordinates as number[]) }))
+    .sort((a, b) => a.dist - b.dist)
+
+  const items = ctx.sidebar.querySelectorAll<HTMLElement>('.waypoint-item')
+  Array.from(items).forEach((el, idx) => {
+    const wp = sorted[idx]?.wp
+    if (!wp) return
+    const [lng, lat] = wp.geometry.coordinates as number[]
+    const x = makeXButton('panel-x', 'Delete waypoint')
+    x.addEventListener('click', e => {
+      e.stopPropagation()
+      ctx.staging.push({ op: 'delete_waypoint', walkId: ctx.walk.id, payload: { lat, lng } })
+    })
+    el.appendChild(x)
+  })
+}
+
 // Pauses are not rendered as discrete list items in the current viewer
 // timeline panel, so the × affordance has no DOM target. The op still
 // works via the staging API + JSON expert mode; surfacing it in the UI
@@ -137,15 +164,23 @@ export function attachInlineEditors(ctx: AffordanceContext): void {
   })
 }
 
+// `el` may contain a sibling `.panel-x` delete button injected earlier
+// by attachSectionDeletes — using `el.textContent` for the input value
+// would slurp the "×" glyph into the editable text, and wiping
+// textContent erases the × button along with the original text. Both
+// editors save the × reference before wiping and re-append it on
+// commit so the delete affordance survives an edit cycle, and seed
+// the input from `initial` (the source-of-truth text without the ×).
 function attachSingleLineEditor(el: HTMLElement, initial: string, onCommit: (text: string) => void): void {
   el.classList.add('editable-text')
   el.addEventListener('click', () => {
     if (!document.body.classList.contains('tend-on')) return
     if (el.querySelector('.editable-input')) return
+    const xButton = el.querySelector('.panel-x')
     const input = document.createElement('input')
     input.type = 'text'
     input.className = 'editable-input'
-    input.value = el.textContent ?? initial
+    input.value = initial
     el.textContent = ''
     el.appendChild(input)
     input.focus()
@@ -153,6 +188,7 @@ function attachSingleLineEditor(el: HTMLElement, initial: string, onCommit: (tex
     function commit(): void {
       const text = input.value.trim()
       el.textContent = text || initial
+      if (xButton) el.appendChild(xButton)
       if (text && text !== initial) onCommit(text)
     }
     input.addEventListener('blur', commit)
@@ -168,16 +204,18 @@ function attachMultiLineEditor(el: HTMLElement, initial: string, onCommit: (text
   el.addEventListener('click', () => {
     if (!document.body.classList.contains('tend-on')) return
     if (el.querySelector('.editable-input')) return
+    const xButton = el.querySelector('.panel-x')
     const input = document.createElement('textarea')
     input.className = 'editable-input'
-    input.rows = Math.max(2, Math.ceil((el.textContent ?? '').length / 60))
-    input.value = el.textContent ?? initial
+    input.rows = Math.max(2, Math.ceil(initial.length / 60))
+    input.value = initial
     el.textContent = ''
     el.appendChild(input)
     input.focus()
     function commit(): void {
       const text = input.value.trim()
       el.textContent = text || initial
+      if (xButton) el.appendChild(xButton)
       if (text && text !== initial) onCommit(text)
     }
     input.addEventListener('blur', commit)

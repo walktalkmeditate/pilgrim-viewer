@@ -4,6 +4,18 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.2] - 2026-04-27
+
+Follow-up polish from real-world testing of v1.4.1.
+
+### Fixed
+
+- **Inline editor absorbed the delete button into the textarea.** Clicking into an editable section (intention, reflection, transcription) seeded the textarea from `el.textContent`, which included the trailing "×" glyph from the section's delete affordance. The "×" appeared inside the editable text, and `el.textContent = ''` permanently removed the delete button. The editor now seeds from the source-of-truth `initial` text and saves the `.panel-x` reference before wiping so the delete affordance survives an edit cycle.
+
+### Added
+
+- **Waypoint deletes.** Each row in the Waypoints panel now gets a × in tend mode, alongside the existing section/photo/transcription affordances. New `attachWaypointDeletes` hook (`src/edit/affordances.ts`) re-derives the panel's distance-from-start sort so DOM index aligns with the waypoint array. Live preview filters waypoints from `walk.route.features` via `applyMods`; saved `.pilgrim` filters via `applyEditsToRawWalk`. GPX side already supported `delete_waypoint`. Map markers update automatically on the next render. Caveat: deletion is panel-only — there's no × on the map markers themselves; that's a v1.5+ concern.
+
 ## [1.4.1] - 2026-04-27
 
 Polish release for the editor — bug fixes from production review of `edit.pilgrimapp.org`. No new features, no schema changes.

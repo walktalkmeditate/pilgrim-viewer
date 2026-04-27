@@ -108,6 +108,22 @@ export function applyMods(walk: Walk, mods: Modification[]): Walk | null {
     changed = true
   }
 
+  // Waypoint deletes — match Point features by coordinate. Multiple
+  // waypoints at identical coords would collapse together, but that's
+  // an unrealistic edit (waypoints are user-pinned, never duplicated).
+  const waypointDeletes = mods.filter(m => m.op === 'delete_waypoint')
+  if (waypointDeletes.length > 0) {
+    const targets = waypointDeletes.map(m => m.payload as { lat: number; lng: number })
+    const features = next.route.features.filter(f => {
+      if (f.geometry.type !== 'Point') return true
+      if (f.properties.markerType !== 'waypoint') return true
+      const [lng, lat] = f.geometry.coordinates as number[]
+      return !targets.some(t => t.lat === lat && t.lng === lng)
+    })
+    next = { ...next, route: { ...next.route, features } }
+    changed = true
+  }
+
   // Route trim — last value wins (coalescence guarantees one mod per op per walk).
   let startMeters = 0
   let endMeters = 0
