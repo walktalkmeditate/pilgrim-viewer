@@ -211,6 +211,14 @@ interface PilgrimViewerAPI {
     manifest?: { preferences?: PilgrimPreferences; [key: string]: unknown }
     isGold?: boolean
   }): void
+  /// Load a complete `.pilgrim` ZIP archive by buffer, mimicking the
+  /// drag-and-drop file path. Required when the embedding host (e.g. the
+  /// Pilgrim iOS app) wants the editor's save flow to work — that flow
+  /// needs `originalPilgrimBuffer` set so it can apply mods to the
+  /// existing ZIP structure rather than reconstructing from scratch.
+  /// `loadData` only sets `currentWalks` + `currentManifest` and is
+  /// insufficient for the editor.
+  loadFile(filename: string, base64: string): Promise<void>
 }
 
 const pilgrimViewer: PilgrimViewerAPI = {
@@ -252,6 +260,23 @@ const pilgrimViewer: PilgrimViewerAPI = {
       void renderApp()
     } catch (err) {
       console.error('pilgrimViewer.loadData failed:', err)
+    }
+  },
+  async loadFile(filename, base64) {
+    try {
+      // Decode base64 → ArrayBuffer using atob + Uint8Array. Avoids the
+      // fetch('data:...') round-trip which can be subject to CSP.
+      const binary = atob(base64)
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+      const buffer = bytes.buffer
+      // Reuse the existing file-drop pipeline — sets walks, manifest,
+      // raw walks, AND `originalPilgrimBuffer` so the editor save flow
+      // has everything it needs.
+      await handleFile(filename, buffer)
+    } catch (err) {
+      console.error('pilgrimViewer.loadFile failed:', err)
+      throw err
     }
   },
 }
