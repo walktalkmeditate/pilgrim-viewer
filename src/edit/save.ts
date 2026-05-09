@@ -296,6 +296,43 @@ export function validatePilgrimManifest(raw: unknown): void {
 }
 
 export function triggerDownload(blob: Blob, filename: string): void {
+  // iOS WKWebView host (Pilgrim app) — bypass anchor-based download.
+  // WKWebView's native blob: URL download path produces "DownloadFailed"
+  // errors even with WKDownloadDelegate registered; capture-phase JS
+  // listeners don't reliably preempt it across iOS versions. Posting the
+  // bytes through a registered script message handler is deterministic.
+  // Browser users have no `webkit.messageHandlers.savePilgrim` and fall
+  // through to the standard anchor-click download below.
+  const ios = (window as unknown as {
+    webkit?: {
+      messageHandlers?: {
+        savePilgrim?: { postMessage(msg: unknown): void }
+      }
+    }
+  }).webkit?.messageHandlers?.savePilgrim
+  if (ios) {
+    void blob.arrayBuffer().then(buf => {
+      const bytes = new Uint8Array(buf)
+      let binary = ''
+      const chunk = 0x8000
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(
+          null,
+          Array.from(bytes.subarray(i, i + chunk)),
+        )
+      }
+      const base64 = btoa(binary)
+      ios.postMessage({
+        filename,
+        base64,
+        mime: blob.type || 'application/octet-stream',
+      })
+    }).catch(err => {
+      console.error('[triggerDownload] iOS host bridge failed:', err)
+    })
+    return
+  }
+
   const url = URL.createObjectURL(blob)
   try {
     const a = document.createElement('a')
