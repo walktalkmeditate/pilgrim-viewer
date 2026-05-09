@@ -296,26 +296,9 @@ export function validatePilgrimManifest(raw: unknown): void {
 }
 
 export function triggerDownload(blob: Blob, filename: string): void {
-  // Diagnostic ping — sent for every save attempt regardless of host.
-  // Lets us confirm from the iOS Xcode console that triggerDownload
-  // actually ran and which branch it took.
-  function dbg(msg: string): void {
-    try {
-      const w = window as unknown as {
-        webkit?: { messageHandlers?: { pilgrimDebug?: { postMessage(m: unknown): void } } }
-      }
-      w.webkit?.messageHandlers?.pilgrimDebug?.postMessage(`[triggerDownload] ${msg}`)
-    } catch {
-      // No-op; browser hosts don't have the debug bridge.
-    }
-  }
-  dbg(`called for ${filename} (${blob.size} bytes, type=${blob.type || 'none'})`)
-
   // iOS WKWebView host (Pilgrim app) — bypass anchor-based download.
   // WKWebView's native blob: URL download path produces "DownloadFailed"
-  // errors even with WKDownloadDelegate registered; capture-phase JS
-  // listeners don't reliably preempt it across iOS versions. Posting the
-  // bytes through a registered script message handler is deterministic.
+  // errors because blob URLs carry no Content-Disposition header.
   // Browser users have no `webkit.messageHandlers.savePilgrim` and fall
   // through to the standard anchor-click download below.
   const ios = (window as unknown as {
@@ -326,7 +309,6 @@ export function triggerDownload(blob: Blob, filename: string): void {
     }
   }).webkit?.messageHandlers?.savePilgrim
   if (ios) {
-    dbg('iOS host detected → using savePilgrim bridge')
     void blob.arrayBuffer().then(buf => {
       const bytes = new Uint8Array(buf)
       let binary = ''
@@ -338,20 +320,17 @@ export function triggerDownload(blob: Blob, filename: string): void {
         )
       }
       const base64 = btoa(binary)
-      dbg(`posting ${bytes.length} bytes to savePilgrim`)
       ios.postMessage({
         filename,
         base64,
         mime: blob.type || 'application/octet-stream',
       })
     }).catch(err => {
-      dbg(`iOS host bridge failed: ${err}`)
       console.error('[triggerDownload] iOS host bridge failed:', err)
     })
     return
   }
 
-  dbg('no iOS host → falling through to anchor download')
   const url = URL.createObjectURL(blob)
   try {
     const a = document.createElement('a')
