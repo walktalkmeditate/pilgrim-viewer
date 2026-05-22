@@ -1721,8 +1721,12 @@ body {
 
   .sidebar {
     width: 100%;
-    max-height: 50vh;
-    max-height: 50dvh;
+    /* Percentage (not vh/dvh): Android System WebView reports a 0-height
+       layout viewport, so 50vh/50dvh collapse the panel to 0 and the
+       walks list disappears. % resolves against #app's concrete height
+       (a real viewport height on iOS WKWebView; a pixel height stamped
+       by the Android host on Android). Identical result on iOS. */
+    max-height: 50%;
     border-right: none;
     border-top: 1px solid var(--parchment-tertiary);
     order: 2;
@@ -1731,7 +1735,7 @@ body {
 
   .map-container {
     flex: 1;
-    min-height: 50vh;
+    min-height: 50%;
     order: 1;
   }
 

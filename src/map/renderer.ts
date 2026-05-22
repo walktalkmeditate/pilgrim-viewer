@@ -15,6 +15,20 @@ const ROUTE_COLOR_DEFAULT = '#8B7355'
 const MARKER_START_COLOR = '#7A8B6F'
 const MARKER_END_COLOR = '#A0634B'
 
+const MAP_STYLE_LIGHT = 'mapbox://styles/mapbox/light-v11'
+const MAP_STYLE_DARK = 'mapbox://styles/mapbox/dark-v11'
+
+/**
+ * Pick the basemap to match the active UI theme. `data-theme` is set on
+ * <html> by initTheme() from the stored choice or `prefers-color-scheme`
+ * (see ui/moon-toggle.ts), so the map now follows dark mode instead of
+ * being hardcoded light. Hosts (iOS WKWebView / Android WebView) drive
+ * dark via their reported `prefers-color-scheme`.
+ */
+function mapStyleForTheme(): string {
+  return document.documentElement.dataset.theme === 'dark' ? MAP_STYLE_DARK : MAP_STYLE_LIGHT
+}
+
 function findCoordIndex(timestamps: number[], targetTime: number): number {
   let lo = 0
   let hi = timestamps.length - 1
@@ -37,7 +51,7 @@ export function createMapRenderer(
 
   const map = new mapboxgl.Map({
     container,
-    style: 'mapbox://styles/mapbox/light-v11',
+    style: mapStyleForTheme(),
     center: [0, 20],
     zoom: 1,
   })

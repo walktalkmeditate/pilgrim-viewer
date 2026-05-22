@@ -4,6 +4,18 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.7] - 2026-05-21
+
+Android WebView compatibility — the viewer/editor are embedded in the Pilgrim Android app's WebView, which behaves differently from iOS WKWebView.
+
+### Fixed
+
+- **Walks-list panel collapsed to zero height in the Android app.** On the mobile breakpoint the sidebar used `max-height: 50vh`/`50dvh` and the map `min-height: 50vh`. Android System WebView reports a 0-height *layout* viewport (its visual viewport is correct), so every viewport-unit height resolved to `0` and the bottom walks panel disappeared (only the map showed). Switched both to `%`, which resolves against `#app`'s concrete height. Identical rendering on desktop and iOS (where the viewport units already worked).
+
+### Added
+
+- **Map basemap follows the active theme.** The single-walk renderer was hardcoded to `light-v11`; it now picks `dark-v11` when `<html data-theme="dark">` (set from the stored choice or `prefers-color-scheme`, and driven explicitly by the iOS/Android hosts). The map goes dark in dark mode instead of staying light.
+
 ## [1.4.2] - 2026-04-27
 
 Follow-up polish from real-world testing of v1.4.1.
