@@ -4,6 +4,18 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.8] - 2026-06-01
+
+Save-button reachability in the embedded editor — in the Pilgrim app WebViews the "Save tended file" button could sit behind the device's bottom system chrome with no way to reach it.
+
+### Fixed
+
+- **Save button buried behind the bottom system bar in the apps.** The staging drawer is `position: fixed; bottom: 0`, so in the iOS/Android app WebViews it landed behind Android's gesture nav / iOS's home indicator — and a fixed element can't be scrolled into view. Added an `env(safe-area-inset-bottom)` cushion so the drawer clears the system chrome. No-op in desktop browsers (env resolves to `0`).
+
+### Changed
+
+- **Footer hidden inside the app embeds.** "Your data stays on your device / Open source · MIT License / Recorded with Pilgrim" is redundant once you're already in Pilgrim, and its `margin-top: auto` pin crowded the cramped bottom strip where the save drawer sits. Now hidden when running inside the iOS/Android host (detected via the save bridge); mobile-browser and desktop visitors to edit.pilgrimapp.org still see it.
+
 ## [1.4.7] - 2026-05-21
 
 Android WebView compatibility — the viewer/editor are embedded in the Pilgrim Android app's WebView, which behaves differently from iOS WKWebView.
