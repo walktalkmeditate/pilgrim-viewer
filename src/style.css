@@ -443,6 +443,12 @@ body {
   border-top: 1px solid var(--parchment-tertiary);
 }
 
+/* Inside the iOS/Android app embed the footer is redundant (you're
+   already in Pilgrim) and its margin-top:auto pin crowds the cramped
+   bottom strip where the save drawer sits. Browser visitors to
+   edit.pilgrimapp.org still get it (privacy line + attribution). */
+body.is-app-embed .app-footer { display: none; }
+
 .app-footer-privacy {
   font-family: var(--font-ui);
   font-size: 0.6875rem;

@@ -30,6 +30,18 @@ import { appTitle, appTabTitle, isEditHost } from './branding'
 // the in-tab fallback for environments where the worker doesn't run.
 document.title = appTabTitle()
 
+// Flag the body when running inside an app host — iOS exposes the
+// `savePilgrim` message handler, Android the `PilgrimSaveBridge` JS
+// interface. Lets host-only styling apply (e.g. hiding the redundant
+// footer that crowds the bottom where the save drawer sits).
+const pilgrimHost = window as unknown as {
+  webkit?: { messageHandlers?: { savePilgrim?: unknown } }
+  PilgrimSaveBridge?: unknown
+}
+if (pilgrimHost.webkit?.messageHandlers?.savePilgrim || pilgrimHost.PilgrimSaveBridge) {
+  document.body.classList.add('is-app-embed')
+}
+
 const app = document.getElementById('app')!
 
 const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
