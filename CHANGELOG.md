@@ -4,6 +4,14 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.9] - 2026-06-01
+
+Follow-up to 1.4.8 — on Android the editor's Save button was still hidden behind the gesture nav.
+
+### Fixed
+
+- **Save button hidden behind Android's gesture nav.** Android WebView reports `env(safe-area-inset-bottom)` as `0` (unlike iOS WKWebView), so 1.4.8's cushion was a no-op there. The save drawer now pads against a `--pilgrim-safe-bottom` CSS variable that the Android host injects with the real gesture-nav height (read from the window, bypassing Compose inset-consumption). iOS still falls back to `env()` (home indicator); desktop browsers resolve to `0`. Requires the matching pilgrim-android build that sets the variable.
+
 ## [1.4.8] - 2026-06-01
 
 Save-button reachability in the embedded editor — in the Pilgrim app WebViews the "Save tended file" button could sit behind the device's bottom system chrome with no way to reach it.

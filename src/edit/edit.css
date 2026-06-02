@@ -141,10 +141,12 @@ body.tend-on .editable-text:hover { border-bottom-color: currentColor; }
   background: var(--parchment);
   border-top: 1px solid rgba(128, 128, 128, 0.3);
   padding: 0.75rem 1rem;
-  /* Clear the bottom system chrome (Android gesture nav, iOS home
-     indicator) so the Save button isn't buried behind it in the app
-     embeds. env() resolves to 0 in desktop browsers — a no-op there. */
-  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  /* Lift the Save button above the bottom system chrome in the app
+     embeds. Android WebView reports env(safe-area-inset-bottom) as 0, so
+     the Android host injects the real gesture-nav height as
+     --pilgrim-safe-bottom; iOS falls back to env() (home indicator);
+     desktop browsers resolve to 0 (no-op). */
+  padding-bottom: calc(0.75rem + var(--pilgrim-safe-bottom, env(safe-area-inset-bottom, 0px)));
   z-index: 100;
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -222,7 +224,7 @@ body.tend-on .editable-text:hover { border-bottom-color: currentColor; }
       "list  list";
     gap: 0.5rem;
     padding: 0.6rem 0.75rem;
-    padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(0.6rem + var(--pilgrim-safe-bottom, env(safe-area-inset-bottom, 0px)));
   }
   .staging-drawer-count { grid-area: count; }
   .staging-drawer-actions { grid-area: actions; }
