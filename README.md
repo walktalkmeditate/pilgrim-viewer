@@ -4,6 +4,7 @@ Open source browser-based viewer and editor for `.pilgrim` and `.gpx` walk files
 Your data stays on your device.
 
 **[view.pilgrimapp.org](https://view.pilgrimapp.org)** — see your walks
+
 **[edit.pilgrimapp.org](https://edit.pilgrimapp.org)** — tend your walks
 
 ---
