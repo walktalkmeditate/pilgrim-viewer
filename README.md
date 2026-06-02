@@ -1,9 +1,10 @@
 # *Pilgrim Viewer*
 
-Open source browser-based viewer for `.pilgrim` and `.gpx` walk files.
+Open source browser-based viewer and editor for `.pilgrim` and `.gpx` walk files.
 Your data stays on your device.
 
-**[view.pilgrimapp.org](https://view.pilgrimapp.org)**
+**[view.pilgrimapp.org](https://view.pilgrimapp.org)** — see your walks
+**[edit.pilgrimapp.org](https://edit.pilgrimapp.org)** — tend your walks
 
 ---
 
@@ -35,6 +36,13 @@ Drop a `.pilgrim` file and see all of that *plus* your intention, weather, voice
 - PNG clean (pure art, no text)
 - Combined journey goshuin seal watermark
 
+**Editor** — [edit.pilgrimapp.org](https://edit.pilgrimapp.org) ([details below](#editor))
+- Tend mode — a delete-first redactor; you can prune and fix typos, but never forge data
+- Archive walks, delete sections/photos/recordings/pauses/segments/waypoints, trim routes
+- Inline edits for intention, reflection, and voice-transcription text
+- Staging drawer with per-change undo — nothing is applied until you save
+- Saves a `-tended` copy with manifest tending-history and iOS schema validation
+
 **Design**
 - Dark/light mode with lunar phase toggle
 - Wabi-sabi aesthetic (Cormorant Garamond + Lato)
@@ -55,26 +63,46 @@ Or drop your own `.gpx` or `.pilgrim` file.
 
 ## Editor
 
-The same codebase serves a redactor / pruner at **edit.pilgrimapp.org**. Drop a `.pilgrim` or `.gpx` file, click **Tend**, and:
+The same codebase serves a second tool at **[edit.pilgrimapp.org](https://edit.pilgrimapp.org)**: a place to *tend* a `.pilgrim` or `.gpx` file. It's a redactor / pruner, not a content editor — **delete-first by design**. You can remove things and fix typos in text you wrote, but you can't change numbers, GPS, or dates. The honesty of the artifact comes from being unable to forge it.
 
-- Archive whole walks (skeletal records preserve lifetime totals).
-- Delete sections, photos, voice recordings, pauses, activity segments.
-- Trim route start/end via map handles.
-- Edit intention, reflection, and voice-transcription text.
+**How it works**
 
-All client-side; nothing uploaded. The editor is hostname-gated — the view bundle at `view.pilgrimapp.org` does not load any edit code.
+1. Drop a `.pilgrim` or `.gpx` file — same drop zone as the viewer, opens in View mode.
+2. Click **Tend**. Affordances appear: × buttons on deletable items, drag handles at the route ends, dotted underlines on editable text.
+3. Make changes. Each one stages into a drawer at the bottom — "3 changes pending" — with a ↩ to undo any single one. **Nothing is applied until you save**; until then the original is untouched and every change is reversible.
+4. Click **Save tended file** to download the result.
 
-Local development:
+**What you can tend**
+
+- **Archive whole walks** (multi-walk `.pilgrim`) — the route, photos, and text are removed, but a skeletal record keeps the walk's date, distance, and meditation time so your lifetime totals stay intact. The one change that asks for confirmation.
+- **Delete** sections (intention, reflection, weather, celestial), photos, voice recordings, pauses, activity segments, and GPX waypoints.
+- **Trim** the start or end of a route by dragging handles on the map; stats recompute live as you drag.
+- **Edit text** in three fields only — intention, reflection, and voice transcription — for fixing typos in imperfect transcriptions.
+
+**Saving**
+
+Save produces a fresh `<name>-tended.pilgrim` (or `.gpx`) download. The original file on disk is never overwritten — a browser can't write back, and that's the point. Every save:
+
+- Records a **tending history** in the file's manifest — what changed, and when. Cumulative across sessions, so a file carries its full provenance. Opt out with the **Include tending history** checkbox before saving.
+- Validates the full iOS schema before writing, so a tended `.pilgrim` re-imports cleanly into the Pilgrim app. If validation fails, the save fails loud rather than handing you a broken file.
+
+The editor also runs embedded inside the iOS and Android Pilgrim apps' WebViews, where Save hands the tended file back to the app instead of downloading it.
+
+**One codebase, two hostnames**
+
+Everything runs in your browser; nothing is uploaded. The editor is hostname-gated — the edit layer is dynamic-imported only when the host starts with `edit.`, so the view-only bundle at `view.pilgrimapp.org` ships **zero** edit bytes. Settings (Mapbox token, theme, privacy zone) live in per-origin `localStorage` and do not carry between `view.*` and `edit.*`. If you use a custom Mapbox token, whitelist `edit.pilgrimapp.org` alongside `view.pilgrimapp.org` in the Mapbox dashboard.
+
+**Local development**
 
 ```bash
 npm run dev
-# View mode (default):
-open http://localhost:5173/
-# Edit mode (opt-in):
-open http://localhost:5173/?edit=1
+open http://localhost:5173/          # View mode (default)
+open http://localhost:5173/?edit=1   # Tend mode (opt-in)
 ```
 
-Deploy: identical to the viewer — same GitHub Action, tag-triggered. Add a CNAME for `edit.pilgrimapp.org` pointing at the same Pages site.
+**Deploy**
+
+Same Pages site as the viewer — one bundle, tag-triggered, no second deploy. A small Cloudflare Worker (`pilgrim-edit-router`) fronts `edit.pilgrimapp.org`, rewriting the request's `Host` header to the viewer's Pages origin and using `HTMLRewriter` to swap the page title and social-share metadata to "Pilgrim Editor".
 
 ## Development
 
@@ -93,7 +121,7 @@ VITE_MAPBOX_TOKEN=pk.your_token_here
 ```bash
 npm run dev       # Start dev server at localhost:5173
 npm run typecheck # TypeScript check
-npm test          # Run 205 tests
+npm test          # Run 283 tests
 npm run build     # Production build to dist/
 ```
 
@@ -102,7 +130,7 @@ npm run build     # Production build to dist/
 | | |
 |---|---|
 | **Runtime** | Vanilla TypeScript, Vite, Mapbox GL JS, JSZip, fast-xml-parser |
-| **Tests** | Vitest (205 tests, 12 files) |
+| **Tests** | Vitest (283 tests, 22 files) |
 | **Deploy** | GitHub Pages via GitHub Actions (tag-triggered) |
 | **Fonts** | Cormorant Garamond, Lato (Google Fonts) |
 
@@ -114,12 +142,14 @@ No framework. No state management library. No CSS framework. The viewer is a sin
 src/
   parsers/     .pilgrim and .gpx → normalized Walk type
   map/         Mapbox renderers (single walk + overlay) + PNG export
-  panels/      8 data panels + goshuin seal
+  panels/      10 data panels incl. goshuin seal
   ui/          Drop zone, walk list, layout, route animation, toggles
+  edit/        Tend-mode layer — staging, appliers, save (loaded only on edit.*)
+  branding.ts  Hostname-aware copy (Viewer vs Editor)
   main.ts      App entry — wires everything together
 ```
 
-Both parsers normalize into the same `Walk` type. Everything downstream is format-agnostic. Panels self-hide when their data is absent.
+Both parsers normalize into the same `Walk` type. Everything downstream is format-agnostic. Panels self-hide when their data is absent. The `edit/` layer is additive — it injects affordances into the rendered DOM via hooks and never reaches into the renderers, and its core (`applier`, `recompute`, `save`) is pure, driving both the live preview and the saved file.
 
 ## JS Bridge API
 
