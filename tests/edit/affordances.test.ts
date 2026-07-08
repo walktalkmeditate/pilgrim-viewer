@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest'
-import { attachPhotoDeletes, attachVoiceRecordingDeletes, attachInlineEditors } from '../../src/edit/affordances'
+import { attachPhotoDeletes, attachVoiceRecordingDeletes, attachWaypointDeletes, attachInlineEditors } from '../../src/edit/affordances'
 import { createStaging } from '../../src/edit/staging'
-import type { Walk, WalkPhoto, VoiceRecording } from '../../src/parsers/types'
+import { renderWaypointsPanel, renderFoundPlacesPanel } from '../../src/panels/waypoints'
+import type { Walk, WalkPhoto, VoiceRecording, GeoJSONFeature } from '../../src/parsers/types'
 
 function makeWalk(overrides: Partial<Walk> = {}): Walk {
   return {
@@ -113,6 +114,65 @@ describe('attachVoiceRecordingDeletes', () => {
     expect(list[0].op).toBe('delete_voice_recording')
     const targetedStartDate = (list[0].payload as { startDate: number }).startDate
     expect(targetedStartDate).toBe(Math.floor(2_000_000 / 1000))
+  })
+})
+
+describe('attachWaypointDeletes — panel order alignment', () => {
+  let sidebar: HTMLElement
+  beforeEach(() => {
+    sidebar = document.createElement('div')
+    document.body.appendChild(sidebar)
+  })
+
+  function makeWaypoint(coordinates: number[], label: string, icon: string, timestamp: number): GeoJSONFeature {
+    return {
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates },
+      properties: { markerType: 'waypoint', label, icon, timestamp },
+    }
+  }
+
+  it('maps × buttons across the Waypoints and Found places panels to the right features', () => {
+    const staging = createStaging()
+    const routeLine: GeoJSONFeature = {
+      type: 'Feature',
+      geometry: { type: 'LineString', coordinates: [[-8.51, 42.87], [-8.52, 42.88], [-8.53, 42.89]] },
+      properties: {},
+    }
+    // Interleaved in feature order so index alignment actually gets exercised.
+    const walk = makeWalk({
+      route: {
+        type: 'FeatureCollection',
+        features: [
+          routeLine,
+          makeWaypoint([-8.52, 42.88], 'Second clearing', 'sun.haze', 300),
+          makeWaypoint([-8.53, 42.89], 'Grateful', 'heart', 200),
+          makeWaypoint([-8.529, 42.889], 'First clearing', 'sun.haze', 100),
+          makeWaypoint([-8.51, 42.87], 'Peaceful', 'leaf', 50),
+        ],
+      },
+    })
+
+    // Real renderers, in the same order ui/layout.ts mounts them.
+    renderWaypointsPanel(sidebar, walk)
+    renderFoundPlacesPanel(sidebar, walk)
+
+    attachWaypointDeletes({ staging, walk, sidebar })
+
+    const xs = sidebar.querySelectorAll<HTMLButtonElement>('.waypoint-item .panel-x')
+    expect(xs.length).toBe(4)
+
+    // DOM order: Peaceful, Grateful (by distance), then First clearing,
+    // Second clearing (by time). xs[2] must target First clearing.
+    xs[2].click()
+    const list = staging.list()
+    expect(list).toHaveLength(1)
+    expect(list[0].op).toBe('delete_waypoint')
+    expect(list[0].payload).toEqual({ lat: 42.889, lng: -8.529 })
+
+    // And an ordinary waypoint still deletes as before.
+    xs[0].click()
+    expect(staging.list()[1].payload).toEqual({ lat: 42.87, lng: -8.51 })
   })
 })
 

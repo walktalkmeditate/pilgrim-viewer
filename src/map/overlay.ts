@@ -4,6 +4,8 @@ import type { Walk, GeoJSONFeature } from '../parsers/types'
 import type { UnitSystem } from '../parsers/units'
 import { generateStatsText } from './export'
 import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
+import { createFoundPlaceElement } from './found-place-marker'
+import { isFoundPlace } from '../parsers/found-place'
 import { PRIVACY_STORAGE_KEY } from '../ui/privacy-zone'
 import { createTerrainToggle } from './terrain'
 
@@ -299,6 +301,17 @@ export function createOverlayRenderer(
     }
 
     for (const wp of wpFeatures) {
+      if (isFoundPlace(wp)) {
+        const marker = new mapboxgl.Marker({
+          element: createFoundPlaceElement(wp.properties.label, 'overlay'),
+          anchor: 'center',
+        })
+          .setLngLat(wp.geometry.coordinates as [number, number])
+          .addTo(map)
+        activeMarkers.push(marker)
+        continue
+      }
+
       const icon = resolveWaypointIcon(wp.properties.icon)
       const svgContent = getWaypointIconSvg(icon).replace(/currentColor/g, '#C4956A')
 

@@ -1439,8 +1439,59 @@ body.is-app-embed .app-footer { display: none; }
   opacity: 0.85;
 }
 
+/* Found places — Seek arrivals (reserved icon "sun.haze") render as a
+   soft dawn halo instead of a pin. The halo ignores pointer events so
+   it never blocks the map; only the small core is hoverable. */
+.found-place-halo {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(196, 149, 106, 0.4) 0%,
+    rgba(196, 149, 106, 0.16) 45%,
+    rgba(196, 149, 106, 0) 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.found-place-core {
+  position: relative;
+  pointer-events: auto;
+  cursor: pointer;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(196, 149, 106, 0.9);
+  box-shadow: 0 0 10px 3px rgba(196, 149, 106, 0.55);
+  transition: transform 0.15s;
+}
+
+.found-place-core:hover {
+  transform: scale(1.3);
+}
+
+/* Found places — overlay (dark map): smaller and dimmer so stacked
+   walks stay readable. */
+.found-place-halo-overlay {
+  width: 40px;
+  height: 40px;
+  background: radial-gradient(circle,
+    rgba(196, 149, 106, 0.35) 0%,
+    rgba(196, 149, 106, 0.12) 45%,
+    rgba(196, 149, 106, 0) 70%);
+}
+
+.found-place-halo-overlay .found-place-core {
+  width: 8px;
+  height: 8px;
+  box-shadow: 0 0 8px 2px rgba(196, 149, 106, 0.45);
+}
+
 /* Waypoint Tooltips */
-.waypoint-marker .waypoint-tooltip {
+.waypoint-marker .waypoint-tooltip,
+.found-place-core .waypoint-tooltip {
   display: none;
   position: absolute;
   bottom: 100%;
@@ -1457,7 +1508,8 @@ body.is-app-embed .app-footer { display: none; }
   pointer-events: none;
 }
 
-.waypoint-marker:hover .waypoint-tooltip {
+.waypoint-marker:hover .waypoint-tooltip,
+.found-place-core:hover .waypoint-tooltip {
   display: block;
 }
 
@@ -1587,10 +1639,21 @@ body.is-app-embed .app-footer { display: none; }
   color: var(--ink);
 }
 
-.waypoint-item-dist {
+.waypoint-item-dist,
+.waypoint-item-time {
   font-size: 0.75rem;
   color: var(--fog);
   font-variant-numeric: tabular-nums;
+}
+
+/* Found places panel — the sidebar echo of the map's dawn halo */
+.found-place-dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(196, 149, 106, 0.9);
+  box-shadow: 0 0 6px 2px rgba(196, 149, 106, 0.4);
 }
 
 /* Year Picker */

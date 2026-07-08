@@ -4,6 +4,8 @@ import type { Walk, Activity, GeoJSONFeature } from '../parsers/types'
 import { resolveWaypointIcon, getWaypointIconSvg } from './waypoint-icons'
 import { createTerrainToggle } from './terrain'
 import { createPhotoMarker } from './photo-marker'
+import { createFoundPlaceElement } from './found-place-marker'
+import { isFoundPlace } from '../parsers/found-place'
 
 const ACTIVITY_COLORS: Record<Activity['type'], string> = {
   walk: '#7A8B6F',
@@ -268,6 +270,19 @@ export function createMapRenderer(
       }
 
       for (const wp of waypointFeatures) {
+        const coords = wp.geometry.coordinates as [number, number]
+
+        if (isFoundPlace(wp)) {
+          const marker = new mapboxgl.Marker({
+            element: createFoundPlaceElement(wp.properties.label),
+            anchor: 'center',
+          })
+            .setLngLat(coords)
+            .addTo(map)
+          activeMarkers.push(marker)
+          continue
+        }
+
         const icon = resolveWaypointIcon(wp.properties.icon)
         const svg = getWaypointIconSvg(icon).replace(/currentColor/g, '#8B7355')
 
@@ -282,7 +297,6 @@ export function createMapRenderer(
           el.appendChild(tip)
         }
 
-        const coords = wp.geometry.coordinates as [number, number]
         const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
           .setLngLat(coords)
           .addTo(map)
