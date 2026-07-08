@@ -1,7 +1,7 @@
-import type { Walk, DeletableSection, GeoJSONFeature } from '../parsers/types'
+import type { Walk, DeletableSection } from '../parsers/types'
 import type { Staging } from './staging'
 import { showArchiveModal } from './archive-modal'
-import { distanceFromStart } from '../panels/waypoints'
+import { panelOrderedWaypoints } from '../panels/waypoints'
 
 export interface AffordanceContext {
   staging: Staging
@@ -96,20 +96,16 @@ export function attachVoiceRecordingDeletes(ctx: AffordanceContext): void {
 }
 
 export function attachWaypointDeletes(ctx: AffordanceContext): void {
-  const waypoints = ctx.walk.route.features.filter(
-    (f): f is GeoJSONFeature => f.geometry.type === 'Point' && f.properties.markerType === 'waypoint',
-  )
-  if (waypoints.length === 0) return
-
-  // Same sort renderWaypointsPanel uses (distance from route start),
-  // so DOM index lines up with this array.
-  const sorted = waypoints
-    .map(wp => ({ wp, dist: distanceFromStart(ctx.walk, wp.geometry.coordinates as number[]) }))
-    .sort((a, b) => a.dist - b.dist)
+  // panelOrderedWaypoints mirrors the DOM order of `.waypoint-item`
+  // rows across the Waypoints and Found places panels, so index maps
+  // each row back to its feature. Found places are still waypoints
+  // and get the same × affordance.
+  const ordered = panelOrderedWaypoints(ctx.walk)
+  if (ordered.length === 0) return
 
   const items = ctx.sidebar.querySelectorAll<HTMLElement>('.waypoint-item')
   Array.from(items).forEach((el, idx) => {
-    const wp = sorted[idx]?.wp
+    const wp = ordered[idx]
     if (!wp) return
     const [lng, lat] = wp.geometry.coordinates as number[]
     const x = makeXButton('panel-x', 'Delete waypoint')

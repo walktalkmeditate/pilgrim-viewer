@@ -9,7 +9,7 @@ import { renderIntentionPanel } from '../panels/intention'
 import { renderWeatherPanel } from '../panels/weather'
 import { renderTranscriptionsPanel } from '../panels/transcriptions'
 import { renderCelestialPanel } from '../panels/celestial'
-import { renderWaypointsPanel } from '../panels/waypoints'
+import { renderWaypointsPanel, renderFoundPlacesPanel } from '../panels/waypoints'
 import { renderPhotosPanel } from '../panels/photos'
 import { formatDistance, formatDuration } from '../parsers/units'
 import { getWalkColor } from '../map/overlay'
@@ -203,6 +203,7 @@ export function renderPanels(
 
   renderStatsPanel(panelsContent, walk, unit)
   renderWaypointsPanel(panelsContent, walk, unit)
+  renderFoundPlacesPanel(panelsContent, walk, unit)
   if (onPhotoSelect) {
     renderPhotosPanel(panelsContent, walk, onPhotoSelect)
   }
