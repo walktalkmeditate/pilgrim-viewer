@@ -4,6 +4,19 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-07-08
+
+The Book of Found Places — Pilgrim iOS 1.8.0's Seek mode records arrival at a fogged clearing as a waypoint; the viewer now renders those arrivals as something rarer than a pin.
+
+### Added
+
+- **Dawn halos for Seek arrivals.** Waypoints carrying the reserved `sun.haze` icon (the pilgrim-ios contract for a Seek arrival — never user-pickable) render as a soft 56px radial dawn halo (`#C4956A`) with a small bright core instead of the standard pin. Hovering the core reveals the label ("First clearing"); the halo is `pointer-events: none`, so it never blocks map interaction. The dark overlay map uses a smaller, dimmer 40px variant so stacked walks stay readable.
+- **Found places panel.** Arrivals gather under their own quiet sidebar panel after Waypoints — label, arrival time (falling back to distance-from-start when a timestamp is absent), and a small dawn-dot echo of the map halo. Ordinary waypoints render exactly as before.
+
+### Fixed
+
+- **Waypoint deletes could target the wrong feature once waypoint rows span two panels.** `attachWaypointDeletes` now takes its row order from the shared `panelOrderedWaypoints()` instead of re-deriving the sort locally, keeping the DOM-index → feature mapping correct (pinned by an end-to-end affordance test using the real panel renderers).
+
 ## [1.4.9] - 2026-06-01
 
 Follow-up to 1.4.8 — on Android the editor's Save button was still hidden behind the gesture nav.
