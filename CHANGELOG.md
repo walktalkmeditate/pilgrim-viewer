@@ -4,6 +4,14 @@ All notable changes to Pilgrim Viewer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.5.1] - 2026-07-27
+
+The clearing grows a tree — pilgrim-ios gave Seek arrivals their own art, and the viewer follows.
+
+### Changed
+
+- **Found places carry the clearing's tree.** The small bright core inside the dawn halo becomes a solitary tree. Its path data is byte-identical to the glyph master in pilgrim-ios (`Assets.xcassets/glyphs/seekClearing.imageset/seek-clearing.svg`), so the app, the share page, and the viewer cannot drift apart; only the wrapping transform differs, centring the ink 25px wide on the marker origin. The halo tightens from 56px to 44px (overlay 40px to 32px) so the tree reads as the mark and the halo as light around it. Hover behaviour and the label tooltip are unchanged, and the label is still set as `textContent` on its own node so a walk title never reaches `innerHTML`.
+
 ## [1.5.0] - 2026-07-08
 
 The Book of Found Places — Pilgrim iOS 1.8.0's Seek mode records arrival at a fogged clearing as a waypoint; the viewer now renders those arrivals as something rarer than a pin.
